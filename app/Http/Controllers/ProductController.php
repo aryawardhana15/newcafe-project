@@ -17,6 +17,7 @@ class ProductController extends Controller
     }
 
 
+
     public function getProductData($id)
     {
         $product = Product::find($id);
@@ -33,6 +34,31 @@ class ProductController extends Controller
     }
 
 
+    public function delete_product(Product $product)
+{
+    // Authorization check
+    $this->authorize('delete', $product);
+    
+    try {
+        // Delete product image if exists
+        if ($product->image) {
+            Storage::delete($product->image);
+        }
+        
+        $product->delete();
+        
+        return redirect('/product')->with('message', [
+            'status' => 'success',
+            'message' => 'Product deleted successfully'
+        ]);
+        
+    } catch (\Exception $e) {
+        return back()->with('message', [
+            'status' => 'error',
+            'message' => 'Error deleting product: ' . $e->getMessage()
+        ]);
+    }
+}
     public function addProductPost(Request $request)
     {
         $validatedData = $request->validate([

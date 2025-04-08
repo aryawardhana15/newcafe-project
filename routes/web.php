@@ -35,6 +35,8 @@ Route::middleware(['alreadyLogin'])->group(function () {
 
 
 
+
+
 // main
 Route::middleware(['auth'])->group(function () {
     // Home
@@ -62,6 +64,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post("/product/add_product", "addProductPost")->can("add_product", App\Models\Product::class);
         Route::get("/product/edit_product/{product:id}", "editProductGet")->can("edit_product", App\Models\Product::class);
         Route::post("/product/edit_product/{product:id}", "editProductPost")->can("edit_product", App\Models\Product::class);
+        Route::delete("/product/delete_product/{product}", "deleteProduct")->name('product.delete')->can("delete_product", "product");
     });
 
     // Order

@@ -34,30 +34,18 @@ class ProductController extends Controller
     }
 
 
-    public function delete_product(Product $product)
+    public function destroy($id)
 {
-    // Authorization check
-    $this->authorize('delete', $product);
+    $product = Product::findOrFail($id);
     
-    try {
-        // Delete product image if exists
-        if ($product->image) {
-            Storage::delete($product->image);
-        }
-        
-        $product->delete();
-        
-        return redirect('/product')->with('message', [
-            'status' => 'success',
-            'message' => 'Product deleted successfully'
-        ]);
-        
-    } catch (\Exception $e) {
-        return back()->with('message', [
-            'status' => 'error',
-            'message' => 'Error deleting product: ' . $e->getMessage()
-        ]);
+    // Hapus gambar jika ada
+    if($product->image) {
+        Storage::delete($product->image);
     }
+    
+    $product->delete();
+    
+    return back()->with('success', 'Produk berhasil dihapus');
 }
     public function addProductPost(Request $request)
     {

@@ -30,4 +30,9 @@ class ProductPolicy
     {
         return $user->role_id == Role::ADMIN_ID;
     }
+
+    public function delete_product(User $user, Product $product)
+{
+    return $user->is_admin; // Or your specific admin check
+}
 }

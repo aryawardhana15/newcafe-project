@@ -33,20 +33,20 @@ class ProductController extends Controller
         return view('/product/add_product', compact("title"));
     }
 
-
-    public function destroy($id)
-{
-    $product = Product::findOrFail($id);
+    public function deleteProduct($id)
+    {
+        $product = Product::findOrFail($id);
     
-    // Hapus gambar jika ada
-    if($product->image) {
-        Storage::delete($product->image);
+        if ($product->image) {
+            Storage::delete($product->image);
+        }
+    
+        $product->delete();
+    
+        return back()->with('success', 'Produk berhasil dihapus');
     }
     
-    $product->delete();
     
-    return back()->with('success', 'Produk berhasil dihapus');
-}
     public function addProductPost(Request $request)
     {
         $validatedData = $request->validate([

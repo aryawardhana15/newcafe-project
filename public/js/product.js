@@ -49,6 +49,8 @@ $("button.detail").click(function (event) {
     });
 });
 
+
+
 const setVisible = (elementOrSelector, visible) =>
     ((typeof elementOrSelector === "string"
         ? document.querySelector(elementOrSelector)
@@ -62,6 +64,15 @@ $("#image").on("change", function () {
         image_preview_alt: "Product Image",
     });
 });
+
+function confirmDelete(button) {
+    const form = button.closest('form');
+    const name = button.getAttribute('data-name');
+
+    if (confirm(`Yakin ingin hapus produk dengan ID ${name}?`)) {
+        form.submit();
+    }
+}
 
 // cancel order
 $("#button_edit_product").click(function (e) {

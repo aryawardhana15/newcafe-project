@@ -91,17 +91,21 @@
                                     @can('edit_product',App\Models\Product::class)
                                     <a href="/product/edit_product/{{ $row->id }}"><button
                                           class="btn btn-primary btn-sm ubah">Edit</button></a>
-                                    
-                                    <!-- Delete button -->
-                                    <button class="btn btn-danger btn-sm delete-product" 
-                                            data-id="{{ $row->id }}"
-                                            data-name="{{ $row->product_name }}"
-                                            data-toggle="modal" 
-                                            data-target="#deleteConfirmationModal">
-                                        Delete
-                                    </button>
                                     @endcan
-                                    
+
+                                 
+
+                                    <form action="{{ route('product.delete', $row) }}" method="POST" class="d-inline">
+    @csrf
+    @method('DELETE')
+    <button type="button"
+            class="btn btn-danger btn-sm"
+            onclick="confirmDelete(this)">
+        Delete
+    </button>
+</form>
+
+
                                     @can('create_order',App\Models\Order::class)
                                     <a href="/order/make_order/{{ $row->id }}"><button
                                           class="btn btn-success btn-sm ubah">Buy</button></a>
@@ -118,52 +122,16 @@
     </div>
 </section>
 <!-- product -->
-
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Handle delete confirmation
-    $('#deleteConfirmationModal').on('show.bs.modal', function (event) {
-        const button = $(event.relatedTarget); // Button that triggered the modal
-        const productId = button.data('id');
-        const productName = button.data('name');
-        const modal = $(this);
-        
-        // Update modal content
-        modal.find('.modal-title').text('Delete ' + productName + '?');
-        modal.find('.modal-body').html(
-            `Are you sure you want to delete <strong>${productName}</strong>?<br>
-             This action cannot be undone.`
-        );
-        
-        // Set form action
-        modal.find('#deleteForm').attr('action', `/product/delete_product/${productId}`);
-    });
 
-    // Optional: AJAX delete handling
-    $('#deleteForm').on('submit', function(e) {
-        e.preventDefault();
-        const form = $(this);
-        const url = form.attr('action');
-        
-        $.ajax({
-            url: url,
-            type: 'POST',
-            data: form.serialize(),
-            success: function(response) {
-                $('#deleteConfirmationModal').modal('hide');
-                if(response.success) {
-                    // Show success message
-                    alert('Product deleted successfully');
-                    // Reload the page or remove the card
-                    location.reload();
-                }
-            },
-            error: function(xhr) {
-                alert('Error deleting product: ' + xhr.responseJSON.message);
-            }
-        });
-    });
-});
+function confirmDelete(button) {
+    if (confirm("Yakin ingin menghapus?")) {
+        button.closest('form').submit(); // ✔️ Submit form dengan method DELETE
+    }
+}
+
+
 </script>
+
 
 @endsection

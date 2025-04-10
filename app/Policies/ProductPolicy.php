@@ -33,6 +33,8 @@ class ProductPolicy
 
     public function delete_product(User $user, Product $product)
 {
-    return $user->is_admin; // Or your specific admin check
+   
+    return $user->id === $product->user_id;
 }
+
 }

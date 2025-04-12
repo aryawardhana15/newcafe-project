@@ -34,7 +34,7 @@ class ProductPolicy
     public function delete_product(User $user, Product $product)
 {
    
-    return $user->id === $product->user_id;
+    return $user->role_id == Role::ADMIN_ID;
 }
 
 }

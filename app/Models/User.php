@@ -25,7 +25,6 @@ class User extends Authenticatable
     // ];
 
     protected $guarded = ['id'];
-
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -35,7 +34,6 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
-
     /**
      * The attributes that should be cast.
      *
@@ -54,7 +52,6 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class);
     }
-
     public function review()
     {
         return $this->hasMany(Review::class);

@@ -94,17 +94,17 @@
                                     @endcan
 
                                  
-
-                                    <form action="{{ route('product.delete', $row) }}" method="POST" class="d-inline">
-    @csrf
-    @method('DELETE')
-    <button type="button"
-            class="btn btn-danger btn-sm"
-            onclick="confirmDelete(this)">
-        Delete
-    </button>
-</form>
-
+                                    @can('delete_product', $row)
+                                        <form action="{{ route('product.delete', $row) }}" method="POST" class="d-inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="button"
+                                                    class="btn btn-danger btn-sm"
+                                                    onclick="confirmDelete(this)">
+                                                Delete
+                                            </button>
+                                        </form>
+                                    @endcan
 
                                     @can('create_order',App\Models\Order::class)
                                     <a href="/order/make_order/{{ $row->id }}"><button

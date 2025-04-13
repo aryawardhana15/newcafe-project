@@ -36,7 +36,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "description": "Arbitrary-precision arithmetic library",
             "keywords": [
@@ -94,7 +94,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {
@@ -167,7 +167,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {
@@ -238,7 +238,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {
@@ -328,7 +328,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {
@@ -412,7 +412,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {
@@ -477,7 +477,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {
@@ -541,7 +541,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {
@@ -605,7 +605,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {
@@ -693,7 +693,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {
@@ -799,7 +799,7 @@
             },
             "notification-url": "https://packagist.org/downloads/",
             "license": [
-                "MIT"
+                "-"
             ],
             "authors": [
                 {

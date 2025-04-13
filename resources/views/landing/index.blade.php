@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ProjectCoffee</title>
+    <title>GAFAZ coffee</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .masthead {
@@ -27,7 +27,7 @@
         <div class="overlay"></div>
         <div class="container text-center relative z-10 text-white px-4">
             <h1 class="text-6xl md:text-8xl font-bold uppercase mb-6 animate-fade-in-down font-serif">
-                ProjectCoffee
+            GAFAZ Coffee
             </h1>
             <h2 class="text-xl md:text-2xl text-gray-200 mb-8 animate-fade-in-up max-w-2xl mx-auto leading-relaxed">
                 Experience the art of premium coffee. Crafted with passion, brewed to perfection.

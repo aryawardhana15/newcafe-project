@@ -26,6 +26,7 @@ class TransactionController extends Controller
     }
 
 
+    
     public function addOutcomePost(Request $request)
     {
         $validatedData = $request->validate(

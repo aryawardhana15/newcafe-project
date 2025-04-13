@@ -44,7 +44,7 @@
       <div class="col-lg-6 order-lg-1 d-flex flex-column justify-content-center" data-aos="fade-up">
         <div class="text-center text-lg-start px-4">
           <h1 class="text-5xl md:text-6xl lg:text-7xl font-display font-bold text-coffee-800 mb-6 leading-tight">
-            Discover <span class="text-coffee-600">ProjectCoffee</span> Excellence
+            Discover <span class="text-coffee-600">GAFAZCoffee</span> Excellence
           </h1>
           <p class="text-xl text-coffee-700 mb-8 max-w-lg mx-auto lg:mx-0">
             Experience the perfect blend of tradition and innovation in every cup. Our carefully sourced beans and artisanal roasting create unforgettable coffee moments.
@@ -76,7 +76,7 @@
     <div class="row align-items-center">
       <div class="col-lg-5 mb-12 lg:mb-0">
         <div class="relative" data-aos="fade-right" data-aos-delay="100">
-          <img src="{{ asset('storage/home/projectcoffee.jpg') }}" class="img-fluid rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500" alt="ProjectCoffee">
+          <img src="{{ asset('storage/home/projectcoffee.jpg') }}" class="img-fluid rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500" alt="GAFAZ Coffee">
           <div class="absolute -bottom-6 -left-6 w-full h-full border-4 border-coffee-300 rounded-3xl -z-10"></div>
           
           <!-- Stats overlay -->
@@ -100,7 +100,7 @@
             Crafting <span class="text-coffee-600">Exceptional</span> Coffee Experiences
           </h2>
           <p class="text-lg text-coffee-700 mb-8 leading-relaxed">
-            At ProjectCoffee, we combine generations of expertise with innovative techniques to bring you coffee that tells a story. From sustainable farms to your cup, every step reflects our commitment to quality.
+            At GAFAZ Coffee, we combine generations of expertise with innovative techniques to bring you coffee that tells a story. From sustainable farms to your cup, every step reflects our commitment to quality.
           </p>
           
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -148,7 +148,7 @@
         Our <span class="text-coffee-600">Commitment</span> to Excellence
       </h2>
       <p class="text-xl text-coffee-700 max-w-3xl mx-auto">
-        Discover what makes ProjectCoffee different from ordinary coffee experiences
+        Discover what makes GAFAZ Coffee different from ordinary coffee experiences
       </p>
     </div>
 
@@ -159,7 +159,7 @@
             <div class="inline-flex items-center justify-center w-20 h-20 bg-orange-100 rounded-full mb-6">
               <i class="fas fa-mug-hot text-3xl text-orange-500"></i>
             </div>
-            <h3 class="text-2xl font-display font-bold text-coffee-800 mb-4">Why ProjectCoffee?</h3>
+            <h3 class="text-2xl font-display font-bold text-coffee-800 mb-4">Why GAFAZ Coffee?</h3>
           </div>
           <div class="space-y-4 text-coffee-700">
             <p>

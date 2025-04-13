@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Page - ProjectCoffee</title>
+    <title>Login Page - GAFAZ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom Animation */

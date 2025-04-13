@@ -6,7 +6,7 @@
         "framework",
         "laravel"
     ],
-    "license": "MIT",
+    "license": "-",
     "require": {
         "php": "^8.0.2",
         "guzzlehttp/guzzle": "^7.2",

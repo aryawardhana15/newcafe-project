@@ -24,7 +24,7 @@
             <div class="point mx-auto"><sup style="font-size: 4rem; left: 1rem;">
                 {{ auth()->user()->point }}
               </sup>/<sub style="font-size: 4rem; left: -1rem;">50</sub> </div>
-            <p class="lead text-gray-800 mt-3">Your Point</p>
+            <p class="lead text-gray-800 mt-3">Your Point now</p>
             <p class="text-gray-500 mb-2 mt-3">Get points every time you buy our products to get free products
             </p>
             <form action="/point/convert_point" method="post" id="form_convert_point">

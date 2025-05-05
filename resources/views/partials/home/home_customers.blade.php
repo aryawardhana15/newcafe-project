@@ -61,7 +61,7 @@
       </div>
       <div class="col-lg-6 order-lg-2 mt-10 lg:mt-0" data-aos="fade-left" data-aos-delay="200">
         <div class="relative">
-          <img src="{{ asset('storage/home/coffee.jpg') }}" class="img-fluid rounded-3xl shadow-2xl transform hover:scale-105 transition-transform duration-700" alt="Premium Coffee">
+          <img src="{{ asset('storage/assets/user/kopi.jpg') }}" class="img-fluid rounded-3xl shadow-2xl transform hover:scale-105 transition-transform duration-700" alt="Premium Coffee">
           <div class="absolute -bottom-6 -right-6 w-32 h-32 bg-coffee-400 rounded-2xl -z-10"></div>
           <div class="absolute -top-6 -left-6 w-24 h-24 bg-coffee-300 rounded-full -z-10"></div>
         </div>

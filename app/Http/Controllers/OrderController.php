@@ -5,74 +5,88 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Support\Facades\{Auth, Storage, Validator};
-use App\Models\{Order, Status, Product, Role, Transaction, User};
+use App\Models\{Order, Status, Product, Role, Transaction, User, Bank};
 
 class OrderController extends Controller
 {
     public function makeOrderGet(Product $product)
     {
         $title = "Make Order";
-        $product = $product;
-
-        return view("/order/make_order", compact("title", "product"));
+        $banks = Bank::all();
+        
+        return view("/order/make_order", compact("title", "product", "banks"));
     }
 
 
     public function makeOrderPost(Request $request, Product $product)
     {
-        $rules = [
-            'address' => 'required|max:255',
-            'payment_method' => 'required|numeric',
-            'quantity' => 'required|numeric|gt:0|lte:' . $product->stock,
-            'province' => 'required|numeric|gt:0',
-            'city' => 'required|numeric|gt:0',
-            'total_price' => 'required|gt:0',
-            'shipping_address' => 'required',
-            'coupon_used' => 'required|gte:0'
-        ];
-
-
-        $message = [
-            'payment_method.required' => 'Please select the payment method',
-            'province.gt' => 'Please select the province',
-            'city.gt' => 'Please select the city',
-            'quantity.lte' => 'sorry the current available stock is ' . $product->stock,
-        ];
-
-        if ($request->payment_method == 1) {
-            $rules['bank_id'] = 'required|numeric';
-            $message['bank_id.required'] = 'Please select the bank';
-        }
-
-        $validatedData = $request->validate($rules, $message);
-
+        \DB::beginTransaction();
+        
         try {
-            $data = [
-                "product_id" => $product->id,
-                "user_id" => auth()->user()->id,
-                "quantity" => $validatedData["quantity"],
-                "address" => $validatedData["address"],
-                "shipping_address" => $validatedData["shipping_address"],
-                "total_price" => $validatedData["total_price"],
-                "payment_id" => $validatedData["payment_method"],
-                "note_id" => ($validatedData["payment_method"] == 1) ? 2 : 1,
-                "status_id" => 2,
-                "transaction_doc" => ($validatedData["payment_method"] == 1) ? env("IMAGE_PROOF") : null,
-                "is_done" => 0,
-                "coupon_used" => $validatedData["coupon_used"]
+            // Validate request
+            $rules = [
+                'address' => 'required|string|max:255',
+                'payment_method' => 'required|in:1,2',
+                'quantity' => 'required|integer|min:1|max:' . $product->stock,
+                'total_price' => 'required|numeric|min:0',
+                'shipping_address' => 'required|string',
+                'coupon_used' => 'required|integer|min:0'
             ];
 
-            if ($validatedData["payment_method"] == 1) {
-                $data['bank_id'] = $validatedData["bank_id"];
+            if ($request->payment_method == 1) {
+                $rules['bank_id'] = 'required|exists:banks,id';
             }
 
-            Order::create($data);
-            $message = "Orders has been created!";
+            $validatedData = $request->validate($rules);
 
-            myFlasherBuilder(message: $message, success: true);
-            return redirect("/order/order_data");
-        } catch (\Illuminate\Database\QueryException $exception) {
-            return abort(500);
+            // Prepare order data
+            $orderData = [
+                'product_id' => $product->id,
+                'user_id' => auth()->id(),
+                'quantity' => $validatedData['quantity'],
+                'address' => $validatedData['address'],
+                'shipping_address' => $validatedData['shipping_address'],
+                'total_price' => $validatedData['total_price'],
+                'payment_id' => $validatedData['payment_method'],
+                'bank_id' => $validatedData['payment_method'] == 1 ? $validatedData['bank_id'] : null,
+                'note_id' => $validatedData['payment_method'] == 1 ? 2 : 1, // 2 for bank transfer, 1 for COD
+                'status_id' => 2, // Pending status
+                'transaction_doc' => $validatedData['payment_method'] == 1 ? env('IMAGE_PROOF', 'default.jpg') : null,
+                'is_done' => 0,
+                'coupon_used' => $validatedData['coupon_used']
+            ];
+
+            // Create order
+            $order = Order::create($orderData);
+
+            if (!$order) {
+                throw new \Exception('Failed to create order');
+            }
+
+            // Update product stock
+            $product->decrement('stock', $validatedData['quantity']);
+
+            // Update user's coupon if used
+            if ($validatedData['coupon_used'] > 0) {
+                $user = auth()->user();
+                if ($user->coupon < $validatedData['coupon_used']) {
+                    throw new \Exception('Insufficient coupons');
+                }
+                $user->decrement('coupon', $validatedData['coupon_used']);
+            }
+
+            \DB::commit();
+
+            return redirect('/order/order_data')
+                ->with('success', 'Order has been created successfully!');
+
+        } catch (\Exception $e) {
+            \DB::rollback();
+            \Log::error('Order creation failed: ' . $e->getMessage());
+            
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to create order: ' . $e->getMessage());
         }
     }
 
@@ -80,15 +94,22 @@ class OrderController extends Controller
     public function orderData()
     {
         $title = "Order Data";
-        if (auth()->user()->role_id == Role::ADMIN_ID) {
-            $orders = Order::with("bank", "note", "payment", "user", "status", "product")->where(["is_done" => 0])->orderBy("id", "ASC")->get();
-        } else {
-            $orders = Order::with("bank", "note", "payment", "user", "status", "product")->where(["user_id" => auth()->user()->id, "is_done" => 0])->orderBy("id", "ASC")->get();
+        try {
+            $query = Order::with(['bank', 'note', 'payment', 'user', 'status', 'product'])
+                ->where('is_done', 0);
+
+            if (auth()->user()->role_id != Role::ADMIN_ID) {
+                $query->where('user_id', auth()->id());
+            }
+
+            $orders = $query->orderBy('created_at', 'desc')->get();
+            $status = Status::all();
+
+            return view('/order/order_data', compact('title', 'orders', 'status'));
+        } catch (\Exception $e) {
+            \Log::error('Error fetching order data: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to load orders');
         }
-        $status = Status::all();
-
-
-        return view("/order/order_data", compact("title", "orders", "status"));
     }
 
 
@@ -283,74 +304,85 @@ class OrderController extends Controller
 
     public function endOrder(Order $order, Product $product)
     {
-        if ($order->status->order_status == "done") {
-            $message = "The order has already succeded by admin!";
-            myFlasherBuilder(message: $message, failed: true);
+        \DB::beginTransaction();
+        
+        try {
+            if ($order->status->order_status == "done") {
+                throw new \Exception("The order has already been completed by admin!");
+            }
 
-            return redirect("/order/order_data");
-        }
+            if ($order->status->order_status != "approve") {
+                throw new \Exception("Order has not been approved by the admin!");
+            }
 
-        if ($order->status->order_status != "approve") {
-            $message = "Order has not been approved by the admin!";
-            myFlasherBuilder(message: $message, failed: true);
+            // change order status
+            $updated_data = [
+                "status_id" => 4, // Done status
+                "note_id" => 5,
+                "is_done" => 1,
+                "refusal_reason" => null,
+            ];
 
-            return redirect("/order/order_data");
-        }
-
-        // change order status
-        $updated_data = [
-            "status_id" => 4,
-            "note_id" => 5,
-            "is_done" => 1,
-            "refusal_reason" => null,
-        ];
-
-        $order->fill($updated_data);
-
-        if ($order->isDirty()) {
+            $order->fill($updated_data);
             $order->save();
+
+            $point_rules = [
+                "1" => 3,
+                "2" => 4,
+                "3" => 5
+            ];
+
+            // add point to user
+            $user = User::find($order->user_id);
+            $point_total = ($point_rules[$product->id] * (int)$order->quantity) + $user->point;
+            $user->point = $point_total;
+            $user->save();
+
+            $transactional_data = [
+                "category_id" => 1,
+                "description" => "sales of {$order->quantity} unit of product {$product->product_name}",
+                "income" => $order->total_price,
+                "outcome" => null,
+            ];
+
+            // add transactional data
+            Transaction::create($transactional_data);
+
+            \DB::commit();
+
+            $message = "Order has been completed successfully!";
+            myFlasherBuilder(message: $message, success: true);
+
+            return redirect("/order/order_history");
+
+        } catch (\Exception $e) {
+            \DB::rollback();
+            \Log::error('Error completing order: ' . $e->getMessage());
+            myFlasherBuilder(message: $e->getMessage(), failed: true);
+            return redirect("/order/order_data");
         }
-
-        $point_rules = [
-            "1" => 3,
-            "2" => 4,
-            "3" => 5
-        ];
-
-        // add point to user
-        $user = User::find($order->user_id);
-        $point_total = ($point_rules[$product->id] * (int)$order->quantity) + $user->point;
-        $user->point = $point_total;
-        $user->save();
-
-        $transactional_data = [
-            "category_id" => 1,
-            "description" => "sales of {$order->quantity} unit of product {$product->product_name}",
-            "income" => $order->total_price,
-            "outcome" => null,
-        ];
-
-        // add transactional data
-        Transaction::create($transactional_data);
-
-        $message = "Order has been ended by admin";
-        myFlasherBuilder(message: $message, success: true);
-
-        return redirect("/order/order_history");
     }
 
 
     public function orderHistory()
     {
         $title = "History Data";
-        if (auth()->user()->role_id == Role::ADMIN_ID) {
-            $orders = Order::with("bank", "note", "payment", "user", "status", "product")->where(["is_done" => 1])->orderBy("id", "ASC")->get();
-        } else {
-            $orders = Order::with("bank", "note", "payment", "user", "status", "product")->where(["user_id" => auth()->user()->id, "is_done" => 1])->orderBy("id", "ASC")->get();
-        }
-        $status = Status::all();
+        try {
+            $query = Order::with(['bank', 'note', 'payment', 'user', 'status', 'product'])
+                ->where('is_done', 1);
 
-        return view("/order/order_data", compact("title", "orders", "status"));
+            if (auth()->user()->role_id != Role::ADMIN_ID) {
+                $query->where('user_id', auth()->id());
+            }
+
+            $orders = $query->orderBy('created_at', 'desc')->get();
+            $status = Status::all();
+
+            return view('/order/order_data', compact('title', 'orders', 'status'));
+        } catch (\Exception $e) {
+            \Log::error('Error fetching order history: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to load order history');
+        }
     }
 
 
@@ -414,8 +446,6 @@ class OrderController extends Controller
         $rules = [
             'address' => 'required|max:255',
             'quantity' => 'required|numeric|gt:0|lte:' . $order->product->stock,
-            'province' => 'required|numeric|gt:0',
-            'city' => 'required|numeric|gt:0',
             'total_price' => 'required|gt:0',
             'shipping_address' => 'required',
             'coupon_used' => 'required|gte:0'
@@ -423,8 +453,6 @@ class OrderController extends Controller
 
 
         $message = [
-            'province.gt' => 'Please select the province',
-            'city.gt' => 'Please select the city',
             'quantity.lte' => 'sorry the current available stock is ' . $order->product->stock,
         ];
 

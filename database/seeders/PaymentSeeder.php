@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Payment;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use App\Models\Payment;
 
 class PaymentSeeder extends Seeder
 {
@@ -15,12 +15,19 @@ class PaymentSeeder extends Seeder
      */
     public function run()
     {
-        Payment::create([
-            "payment_method" => "Transfer Bank"
-        ]);
-
-        Payment::create([
-            "payment_method" => "COD"
+        DB::table('payments')->insert([
+            [
+                'id' => Payment::BANK_TRANSFER,
+                'payment_method' => 'Transfer Bank',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'id' => Payment::CASH_ON_DELIVERY,
+                'payment_method' => 'Cash on Delivery',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]
         ]);
     }
 }

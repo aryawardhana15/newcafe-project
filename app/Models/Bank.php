@@ -10,9 +10,13 @@ class Bank extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'bank_name',
+        'account_number',
+        'logo'
+    ];
 
-    public function order()
+    public function orders()
     {
         return $this->hasMany(Order::class);
     }

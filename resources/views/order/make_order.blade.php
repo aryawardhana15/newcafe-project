@@ -14,490 +14,230 @@
 @endpush
 
 @section('content')
-<div class="container-fluid px-2 px-lg-4">
-  <h1 class="main-title">
-    {{ $title }}
-  </h1>
-  <div class="row">
+<div class="container-fluid px-4">
+    <h1 class="main-title mb-4">{{ $title }}</h1>
 
-    <!-- Left -->
-    <div class="col-12 col-lg-9">
-      <div class="accordion" id="accordionMain">
+    <form action="/order/make_order/{{ $product->id }}" method="post" id="orderForm">
+        @csrf
+        <div class="row">
+            <!-- Product Details -->
+            <div class="col-lg-8">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">Product Details</h5>
+                        
+                        <!-- Hidden Inputs -->
+                        <input type="hidden" name="product_id" value="{{ $product->id }}">
+                        <input type="hidden" name="shipping_address" id="shipping_address">
+                        <input type="hidden" name="total_price" id="total_price" value="0">
+                        <input type="hidden" name="coupon_used" id="coupon_used" value="0">
+                        
+                        <!-- Product Info -->
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label for="product_name">Product Name</label>
+                                    <input type="text" class="form-control" id="product_name" value="{{ $product->product_name }}" disabled>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="price">Price</label>
+                                    <input type="text" class="form-control" value="Rp. {{ number_format($product->price * (1 - $product->discount/100)) }}" disabled>
+                                    <input type="hidden" id="price" data-trueprice="{{ $product->price * (1 - $product->discount/100) }}">
+                                </div>
+                            </div>
+                        </div>
 
-        <!-- top field -->
-        <div class="accordion-item mb-3 px-4 py-3">
-          <form action="/order/make_order/{{ $product->id }}" method="post">
-            @csrf
+                        <!-- Quantity -->
+                        <div class="form-group mb-3">
+                            <label for="quantity">Quantity</label>
+                            <input type="number" class="form-control @error('quantity') is-invalid @enderror" 
+                                id="quantity" name="quantity" min="1" max="{{ $product->stock }}" 
+                                value="{{ old('quantity', 1) }}" required>
+                            @error('quantity')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
 
-            <!-- hidden input -->
-            <input type="hidden" name="product_id" value="{{ old('product_id', $product->id) }}">
-
-            <div class="row mb-3">
-              <div class="col-md-8">
-                <div class="form-group">
-                  <label for="product_name">Product Name</label>
-                  <input id="product_name" name="product_name" value="{{ $product->product_name }}" type="text"
-                    class="form-control" disabled>
-                </div>
-              </div>
-              <div class="col-md-4">
-                <div class="form-group">
-                  <label for="price">Price per pieces</label>
-                  @if ($product->discount == 0)
-                  <input type="hidden" id="price" name="price" data-truePrice="{{ old('price', $product->price) }}"
-                    value="Rp.
-                {{ old('price', $product->price) }}" type="text" class="form-control" disabled>
-                  @else
-                  <input type="hidden" id="price" name="price"
-                    data-truePrice="{{ old('price', ((100 - $product->discount)/100) * $product->price) }}"
-                    value="Rp. {{ old('price', ((100 - $product->discount)/100) *$product->price) }}" type="text"
-                    class="form-control" disabled>
-                  @endif
-                  <div class="input-group" style="display:unset;">
-                    <div class="input-group-prepend">
-                      @if ($product->discount == 0)
-                      <span class="input-group-text">
-                        {{ $product->price }}
-                      </span>
-                      @else
-                      <span class="input-group-text">Rp. {{ ((100 - $product->discount)/100) * $product->price }} <span
-                          class="strikethrough ms-4">
-                          {{ $product->price }}
-                        </span><sup><sub class="mx-1">of</sub>
-                          {{ $product->discount }}%
-                        </sup>
-                      </span>
-                      @endif
+                        <!-- Address -->
+                        <div class="form-group mb-3">
+                            <label for="address">Delivery Address</label>
+                            <textarea class="form-control @error('address') is-invalid @enderror" 
+                                id="address" name="address" rows="3" required>{{ old('address', auth()->user()->address) }}</textarea>
+                            @error('address')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
                     </div>
-                  </div>
                 </div>
-              </div>
+
+                <!-- Payment Method -->
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">Payment Method</h5>
+                        
+                        <!-- Bank Transfer -->
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="payment_method" id="bank_transfer" 
+                                value="1" {{ old('payment_method') == '1' ? 'checked' : '' }} required>
+                            <label class="form-check-label" for="bank_transfer">
+                                Bank Transfer
+                            </label>
+                        </div>
+
+                        <!-- Bank Selection -->
+                        <div id="bank_selection" class="mb-3" style="display: none;">
+                            <select class="form-select @error('bank_id') is-invalid @enderror" name="bank_id" id="bank_id">
+                                <option value="">Select Bank</option>
+                                @foreach($banks as $bank)
+                                <option value="{{ $bank->id }}" {{ old('bank_id') == $bank->id ? 'selected' : '' }}>
+                                    {{ $bank->bank_name }} - {{ $bank->account_number }}
+                                </option>
+                                @endforeach
+                            </select>
+                            @error('bank_id')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- COD -->
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="payment_method" id="cod" 
+                                value="2" {{ old('payment_method') == '2' ? 'checked' : '' }}>
+                            <label class="form-check-label" for="cod">
+                                Cash on Delivery (COD)
+                            </label>
+                        </div>
+                        @error('payment_method')
+                        <div class="text-danger mt-2">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
             </div>
-            <div class="form-group col-2">
-              <label for="quantity">Quantity</label>
-              <input id="quantity" name="quantity" data-productId="{{ $product->id }}"
-                value="{{ old('quantity', '0' ) }}" type="number" min="0"
-                class="form-control @error('quantity') is-invalid @enderror" onchange="myCounter()">
-            </div>
-            <div class="mb-3 col-12">
-              @error('quantity')
-              <div class="text-danger">{{ $message }}</div>
-              @enderror
-            </div>
-            <div class="row mb-3">
-              <div class="col-12">Destination</div>
-              <div class="form-group col-7">
-                <select class="form-control @error('province_id') is-invalid @enderror" id="province" name="province_id" required>
-                  <option value="" selected disabled>Pilih Provinsi</option>
-                  <option value="1" {{ old('province_id') == '1' ? 'selected' : '' }}>Jawa Barat</option>
-                  <option value="2" {{ old('province_id') == '2' ? 'selected' : '' }}>Jawa Tengah</option>
-                  <option value="3" {{ old('province_id') == '3' ? 'selected' : '' }}>Jawa Timur</option>
-                  <option value="4" {{ old('province_id') == '4' ? 'selected' : '' }}>Banten</option>
-                  <option value="5" {{ old('province_id') == '5' ? 'selected' : '' }}>DKI Jakarta</option>
-                </select>
-                @error('province_id')
-                  <div class="text-danger">{{ $message }}</div>
-                @enderror
-              </div>
-              
-              <div class="form-group col-5">
-                <select class="form-control @error('city_id') is-invalid @enderror" id="city" name="city_id" required>
-                  <option value="" selected disabled>Pilih Kota/Kabupaten</option>
-                </select>
-                @error('city_id')
-                  <div class="text-danger">{{ $message }}</div>
-                @enderror
-              </div>
-            </div>
 
-            <script>
-            document.addEventListener('DOMContentLoaded', function() {
-              const cityData = {
-                1: [ // Jawa Barat
-                  {id: 101, name: 'Bandung'},
-                  {id: 102, name: 'Bekasi'},
-                  {id: 103, name: 'Bogor'},
-                  {id: 104, name: 'Cimahi'},
-                  {id: 105, name: 'Depok'}
-                ],
-                2: [ // Jawa Tengah
-                  {id: 201, name: 'Semarang'},
-                  {id: 202, name: 'Surakarta (Solo)'},
-                  {id: 203, name: 'Pekalongan'},
-                  {id: 204, name: 'Salatiga'},
-                  {id: 205, name: 'Magelang'}
-                ],
-                3: [ // Jawa Timur
-                  {id: 301, name: 'Surabaya'},
-                  {id: 302, name: 'Malang'},
-                  {id: 303, name: 'Kediri'},
-                  {id: 304, name: 'Madiun'},
-                  {id: 305, name: 'Blitar'}
-                ],
-                4: [ // Banten
-                  {id: 401, name: 'Tangerang'},
-                  {id: 402, name: 'Serang'},
-                  {id: 403, name: 'Cilegon'},
-                  {id: 404, name: 'Tangerang Selatan'}
-                ],
-                5: [ // DKI Jakarta
-                  {id: 501, name: 'Jakarta Selatan'},
-                  {id: 502, name: 'Jakarta Barat'},
-                  {id: 503, name: 'Jakarta Timur'},
-                  {id: 504, name: 'Jakarta Utara'},
-                  {id: 505, name: 'Jakarta Pusat'}
-                ]
-              };
+            <!-- Order Summary -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title mb-4">Order Summary</h5>
+                        
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span>Rp. <span id="subtotal">0</span></span>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Shipping:</span>
+                            <span>Rp. <span id="shipping_cost">0</span></span>
+                        </div>
 
-              const provinceSelect = document.getElementById('province');
-              const citySelect = document.getElementById('city');
+                        @if(auth()->user()->coupon > 0)
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>
+                                Coupon Available:
+                                <span class="text-success">{{ auth()->user()->coupon }}</span>
+                            </span>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="use_coupon">
+                                <label class="form-check-label" for="use_coupon">Use Coupon</label>
+                            </div>
+                        </div>
+                        @endif
 
-              provinceSelect.addEventListener('change', function() {
-                const provinceId = parseInt(this.value);
-                
-                // Reset dropdown kota
-                citySelect.innerHTML = '<option value="" selected disabled>Pilih Kota/Kabupaten</option>';
-                
-                // Isi dropdown kota
-                if (provinceId && cityData[provinceId]) {
-                  cityData[provinceId].forEach(city => {
-                    const option = new Option(city.name, city.id);
-                    citySelect.add(option);
-                  });
-                }
-              });
+                        <hr>
+                        <div class="d-flex justify-content-between mb-4">
+                            <strong>Total:</strong>
+                            <strong>Rp. <span id="total">0</span></strong>
+                        </div>
 
-              // Jika ada data old (setelah validasi gagal)
-              @if(old('province_id'))
-                provinceSelect.value = '{{ old("province_id") }}';
-                provinceSelect.dispatchEvent(new Event('change'));
-                
-                // Tunggu sampai dropdown kota terisi
-                setTimeout(() => {
-                  citySelect.value = '{{ old("city_id") }}';
-                }, 100);
-              @endif
-            });
-            </script>
-
-            <div class="form-group mb-3">
-              <label for="address">Address Detail</label>
-              <input type="hidden" name="shipping_address" id="shipping_address">
-              <input id="address" name="address" type="text" class="form-control @error('address') is-invalid @enderror"
-                value="{{ old('address', auth()->user()->address) }}">
-              @error('address')
-              <div class="text-danger">{{ $message }}</div>
-              @enderror
+                        <button type="submit" class="btn btn-primary w-100">Place Order</button>
+                    </div>
+                </div>
             </div>
         </div>
-
-        <!-- Rest of your code remains the same -->
-        <!-- Online Banking -->
-        <div class="accordion-item mb-3 ">
-          <h2 class="h5 px-4 py-3 accordion-header d-flex justify-content-between align-items-center">
-            <div class="form-check w-100 collapsed">
-              <input class="form-check-input" type="radio" name="payment_method" id="online_bank"
-                data-bs-toggle="collapse" data-bs-target="#collapseCC" aria-expanded="false" value="1" {{
-                old('payment_method')=='1' ? 'checked' : '' }} onclick="hideMessage('bank')">
-              <label class="form-check-label pt-1" for="online_bank" data-bs-toggle="collapse"
-                data-bs-target="#collapseCC" aria-expanded="false" onclick="hideMessage('bank')">
-                Transfer Bank
-              </label>
-              @error('payment_method')
-              <div class="text-danger" id="bank_alert">{{ $message }}</div>
-              @enderror
-            </div>
-            <span>
-              <img src="{{ asset('storage/icons/online-banking.png') }}" height="50px" alt="logo online banking">
-            </span>
-          </h2>
-          <div id="collapseCC" class="accordion-collapse collapse {{ old('payment_method')==1 ? 'show' : '' }}"
-            data-bs-parent="#accordionMain">
-            <div class="accordion-body">
-              <div>Select Bank:</div>
-              <div id="mandiri" class="form-check w-100 collapsed">
-                <span><img src="{{ asset('storage/icons/bank-mandiri.svg') }}" alt="mandiri logo" width="40px"></span>
-                <input type="radio" id="bank_mandiri" class="bank" name="bank_id" value="1" {{ old('bank_id')=='1'
-                  ? 'checked' : '' }} style="appearance: none;">
-                <label for="bank_mandiri" class="colapse_pilih_bank" data-bs-toggle="collapse"
-                  data-bs-target="#section_mandiri" aria-expanded="false" style="cursor: pointer;"
-                  onclick="hideBankMessage()">Bank Mandiri</label>
-                <div id="section_mandiri" class="accordion-collapse collapse collapse-pilih-bank"
-                  data-bs-parent="#collapseCC">
-                  <!-- collapse pilih bank -->
-                  <div class="divider"></div>
-                  <div class="d-flex justify-content-between">
-                    <small class="rek-title">No. Rekening Admin: </small>
-                    <small class="rek-title">Atas Nama: </small>
-                  </div>
-                  <div class="d-flex justify-content-between mt-1">
-                    <small class="no-rek">092 7840 1923 7422</small>
-                    <small class="salin-rek">Moh. Najib Fikri</small>
-                  </div>
-                  <div class="divider"></div>
-                  <small class="note">Akan dicek dalam 10 menit setelah pembayaran berhasil</small>
-                </div>
-              </div>
-              <div id="bri" class="form-check w-100 collapsed">
-                <span><img src="{{ asset('storage/icons/bank-bri.svg') }}" alt="bri logo" width="40px"
-                    height="20px"></span>
-                <input type="radio" id="bank_bri" class="bank" name="bank_id" value="2" {{ old('bank_id')=='2'
-                  ? 'checked' : '' }} style="appearance: none;">
-                <label for="bank_bri" class="colapse_pilih_bank" data-bs-toggle="collapse" data-bs-target="#section_bri"
-                  aria-expanded="false" style="cursor: pointer;" onclick="hideBankMessage()">Bank BRI</label>
-                <div id="section_bri" class="accordion-collapse collapse fade collapse-pilih-bank"
-                  data-bs-parent="#collapseCC">
-                  <!-- collapse pilih bank -->
-                  <div class="divider"></div>
-                  <div class="d-flex justify-content-between">
-                    <small class="rek-title">No. Rekening Admin: </small>
-                    <small class="rek-title">Atas Nama: </small>
-                  </div>
-                  <div class="rek-content d-flex justify-content-between mt-1">
-                    <small class="no-rek">058 9092 8274 9125</small>
-                    <small class="salin-rek">Moh. Najib Fikri</small>
-                  </div>
-                  <div class="divider"></div>
-                  <small class="note">Akan dicek dalam 10 menit setelah pembayaran berhasil</small>
-                </div>
-              </div>
-              <div id="bca" class="form-check w-100 collapsed">
-                <span><img src="{{ asset('storage/icons/bank-bca.svg') }}" alt="bca logo" width="40px"></span>
-                <input type="radio" id="bank_bca" class="bank" name="bank_id" value="3" {{ old('bank_id')=='3'
-                  ? 'checked' : '' }} style="appearance: none;">
-                <label for="bank_bca" class="colapse_pilih_bank" data-bs-toggle="collapse" data-bs-target="#section_bca"
-                  aria-expanded="false" style="cursor: pointer;" onclick="hideBankMessage()">Bank BCA</label>
-                <div id="section_bca" class="accordion-collapse collapse fade collapse-pilih-bank"
-                  data-bs-parent="#collapseCC">
-                  <!-- collapse pilih bank -->
-                  <div class="divider"></div>
-                  <div class="d-flex justify-content-between">
-                    <small class="rek-title">No. Rekening Admin: </small>
-                    <small class="rek-title">Atas Nama: </small>
-                  </div>
-                  <div class="rek-content d-flex justify-content-between mt-1">
-                    <small class="no-rek">088 7182 4291 9123</small>
-                    <small class="salin-rek">Moh. Najib Fikri</small>
-                  </div>
-                  <div class="divider"></div>
-                  <small class="note">Akan dicek dalam 10 menit setelah pembayaran berhasil</small>
-                </div>
-              </div>
-              <div id="bni" class="form-check w-100 collapsed">
-                <span><img src="{{ asset('storage/icons/bank-bni.svg') }}" alt="bni logo" width="40px"></span>
-                <input type="radio" id="bank_bni" class="bank" name="bank_id" value="4" {{ old('bank_id')=='4'
-                  ? 'checked' : '' }} style="appearance: none;">
-                <label for="bank_bni" class="colapse_pilih_bank" data-bs-toggle="collapse" data-bs-target="#section_bni"
-                  aria-expanded="false" style="cursor: pointer;" onclick="hideBankMessage()">Bank BNI</label>
-                <div id="section_bni" class="accordion-collapse collapse fade collapse-pilih-bank"
-                  data-bs-parent="#collapseCC">
-                  <!-- collapse pilih bank -->
-                  <div class="divider"></div>
-                  <div class="d-flex justify-content-between">
-                    <small class="rek-title">No. Rekening Admin: </small>
-                    <small class="rek-title">Atas Nama: </small>
-                  </div>
-                  <div class="rek-content d-flex justify-content-between mt-1">
-                    <small class="no-rek">098 2937 9823 2341</small>
-                    <small class="salin-rek">Moh. Najib Fikri</small>
-                  </div>
-                  <div class="divider"></div>
-                  <small class="note">Akan dicek dalam 10 menit setelah pembayaran berhasil</small>
-                </div>
-              </div>
-              @error('bank_id')
-              <div class="text-danger mt-3" id="bank_id_alert">{{ $message }}</div>
-              @enderror
-
-              <!-- petunjuk -->
-              <div class="container mt-3" id="container-petunjuk">
-                <div class="mt-4">
-                  <h6>Transfer Instructions</h6>
-                  <p class="text-muted">BRI Bank Virtual Accounts only accept transfers from BRI Bank accounts. For
-                    payments with a BRI
-                    Syariah Bank account, use a Bank Mandiri virtual account. The following are transfer instructions if
-                    you use Bank BRI.</p>
-                </div>
-                <div class="accordion" id="accordionPetunjuk">
-                  <div class="item">
-                    <div class="item-header" id="headingOne">
-                      <h2 class="mb-0">
-                        <button class="btn btn-link collapsed d-flex justify-content-between align-items-center"
-                          type="button" data-bs-toggle="collapse" data-bs-target="#atm" aria-expanded="false"
-                          aria-controls="atm">
-                          <div class="title-accordion-petunjuk">ATM</div>
-                          <img class="title-accordion-petunjuk" src="{{ asset('storage/icons/angle-down.svg') }}"
-                            alt="angle down fas icon" width="18px">
-                        </button>
-                      </h2>
-                    </div>
-                    <div id="atm" class="collapse" aria-labelledby="headingOne" data-bs-parent="#accordionPetunjuk">
-                      <div class="t-p">
-                        <ol>
-                          <li>Select Other Transactions > Payments > Others > select BRIVA.</li>
-                          <li>Enter no. BRIVA listed on the Payment page (consisting of 3 (three) Bank code numbers +
-                            User mobile number/random number) and select True.</li>
-                          <li>Double-check the information on the screen. Make sure the Merchant is Shopee, the total
-                            bill is correct, and your username is {username}. If it is correct, select Yes.</li>
-                        </ol>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="item">
-                    <div class="item-header" id="headingTwo">
-                      <h2 class="mb-0">
-                        <button class="btn btn-link collapsed d-flex justify-content-between align-items-center"
-                          type="button" data-bs-toggle="collapse" data-bs-target="#e-banking" aria-expanded="false"
-                          aria-controls="e-banking">
-                          <div class="title-accordion-petunjuk">E-Banking</div>
-                          <img class="title-accordion-petunjuk" src="{{ asset('storage/icons/angle-down.svg') }}"
-                            alt="angle down fas icon" width="18px">
-                        </button>
-                      </h2>
-                    </div>
-                    <div id="e-banking" class="collapse" aria-labelledby="headingTwo"
-                      data-bs-parent="#accordionPetunjuk">
-                      <div class="t-p">
-                        <ol>
-                          <li>Select the Payment menu > select BRIVA.</li>
-                          <li>Select the original account, then select Fill in Pay Code and enter the Pay Code listed on
-                            the Payment page (consisting of 3 (three) Bank code numbers + User mobile number/random
-                            number) and select Send.</li>
-                          <li>Check the information on the screen. Make sure the Merchant is Shopee, the total bill is
-                            correct, and your username is {username}. If it is correct, enter your E-Banking Password
-                            and mToken, then select Send.</li>
-                        </ol>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="item">
-                    <div class="item-header" id="headingThree">
-                      <h2 class="mb-0">
-                        <button class="btn btn-link collapsed d-flex justify-content-between align-items-center"
-                          type="button" data-bs-toggle="collapse" data-bs-target="#m-banking" aria-expanded="false"
-                          aria-controls="m-banking">
-                          <div class="title-accordion-petunjuk">M-Banking</div>
-                          <img class="title-accordion-petunjuk" src="{{ asset('storage/icons/angle-down.svg') }}"
-                            alt="angle down fas icon" width="18px">
-                        </button>
-                      </h2>
-                    </div>
-                    <div id="m-banking" class="collapse" aria-labelledby="headingThree"
-                      data-bs-parent="#accordionPetunjuk">
-                      <div class="t-p">
-                        <ol>
-                          <li>Go to BRI Mobile Banking main page > Payment > select BRIVA.</li>
-                          <li>Enter no. BRIVA listed on the Payment page (consisting of 3 (three) Bank code numbers +
-                            User mobile number/random number).</li>
-                          <li>Enter your PIN > select Send. If a confirmation message appears for transactions using
-                            SMS, select OK. Transaction status will be sent via SMS and can be used as proof of payment.
-                          </li>
-                        </ol>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="d-flex justify-content-end">
-                  <a class="btn btn-info px-1 py-0" href="#TransferInstructionsModal" data-bs-toggle="modal">See
-                    More</a>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        {{-- COD --}}
-        <div class="accordion-item mb-3 border">
-          <h2 class="h5 px-4 py-3 accordion-header d-flex justify-content-between align-items-center">
-            <div class="form-check w-100 collapsed">
-              <input class="form-check-input" type="radio" name="payment_method" id="cod" data-bs-toggle="collapse"
-                data-bs-target="#collapsePP" aria-expanded="false" value="2" {{ old('payment_method')=='2' ? 'checked'
-                : '' }} onclick="hideMessage('cod')">
-              <label class="form-check-label pt-1" for="cod" data-bs-toggle="collapse" data-bs-target="#collapsePP"
-                aria-expanded="false" onclick="hideMessage('cod')">
-                Cash on Delivery
-              </label>
-              @error('payment_method')
-              <div class="text-danger" id="cod_alert">{{ $message }}</div>
-              @enderror
-            </div>
-            <span>
-              <img src="{{ asset('storage/icons/cash-on-delivery.png') }}" height="50px" alt="logo COD" />
-            </span>
-          </h2>
-          <div id="collapsePP" class="accordion-collapse collapse  {{ old('payment_method')==2 ? 'show' : '' }}"
-            data-bs-parent="#accordionMain">
-            <div class="accordion-body">
-              <div class="content-cod">
-                <div class="note-cod">Note: use this method if you want to do COD transactions</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <!-- Right -->
-    <div class="col-12 col-lg-3">
-      <div class="card position-sticky top-0">
-        <div class="p-3 bg-light bg-opacity-10">
-          <h6 class="card-title mb-3">Order Summary</h6>
-          {{-- loading --}}
-          <div id="loading_transaction" style="display: none">
-            <lottie-player src="https://assets8.lottiefiles.com/packages/lf20_raiw2hpe.json" background="transparent"
-              speed="1" style="width: auto; height: 125px;" loop autoplay>
-            </lottie-player>
-          </div>
-          {{-- transaction resume --}}
-          <div id="transaction">
-            <div class="d-flex justify-content-between mb-1 small">
-              <span>Subtotal</span> <span><span>Rp. </span> <span id="sub-total">0</span></span>
-            </div>
-            <div class="d-flex justify-content-between mb-1 small">
-              <span>Delivery</span><span>
-                <span>Rp. </span><span id="shipping" data-shippingCost="0">0</span>
-              </span>
-            </div>
-
-            <input type="hidden" name="coupon_used" id="coupon_used" value="0">
-
-            <div class="d-flex justify-content-between mb-1 small">
-              <span>Coupon
-                @if (auth()->user()->coupon == 0)
-                (no coupon)
-                @else
-                <span class="align-items-center">
-                  <label for="use_coupon" style="cursor:pointer">(use coupon</label>
-                </span>
-                <span>
-                  <input id="use_coupon" type="checkbox" onchange="changeStatesCoupon()">
-                </span>
-                )
-                @endif
-              </span><span><span></span><span id="coupon" data-valueCoupon="{{ auth()->user()->coupon }}">
-                  {{ auth()->user()->coupon }} Coupon
-                </span></span>
-            </div>
-            @if (auth()->user()->coupon != 0)
-            <div class="d-flex justify-content-between mb-1 small text-danger">
-              <span>Coupon used</span> <span><span id="couponUsedShow">0 coupon</span></span>
-            </div>
-            @endif
-          </div>
-          <hr>
-          <div class="d-flex justify-content-between mb-4 small">
-            <span>TOTAL</span> <strong class="text-dark"><span>Rp. </span><span id="total">0</span></strong>
-            <input type="hidden" name="total_price" id="total_price" value="{{ old('total_price', '0') }}">
-          </div>
-          <div class="form-group small mb-3">
-            Make sure you really understand the order you make. If you want to get more information please contact <a
-              class="link-danger"
-              href="https://wa.me/6281230451084?text=Saya%20ingin%20menanyakan%20detail%20terkait%20produk%20anda"
-              target="_blank" style="text-decoration: none;">@admin</a>
-          </div>
-          <button type="submit" class="btn btn-primary w-100 mt-2">Submit</button>
-        </div>
-      </div>
-      </form>
-    </div>
-  </div>
+    </form>
 </div>
-@endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Payment method handling
+    const bankTransfer = document.getElementById('bank_transfer');
+    const cod = document.getElementById('cod');
+    const bankSelection = document.getElementById('bank_selection');
+    const bankId = document.getElementById('bank_id');
+
+    function toggleBankSelection() {
+        bankSelection.style.display = bankTransfer.checked ? 'block' : 'none';
+        bankId.required = bankTransfer.checked;
+    }
+
+    bankTransfer.addEventListener('change', toggleBankSelection);
+    cod.addEventListener('change', toggleBankSelection);
+    
+    // Initial state
+    toggleBankSelection();
+
+    // Calculate total
+    const quantity = document.getElementById('quantity');
+    const price = document.getElementById('price');
+    const address = document.getElementById('address');
+    const useCoupon = document.getElementById('use_coupon');
+
+    function calculateTotal() {
+        const qty = parseInt(quantity.value) || 0;
+        const basePrice = parseFloat(price.dataset.trueprice) || 0;
+        const shippingCost = qty > 0 ? 10000 : 0;
+        
+        let subtotal = qty * basePrice;
+        
+        // Apply coupon discount if checked
+        if (useCoupon && useCoupon.checked) {
+            subtotal = subtotal * 0.9; // 10% discount
+            document.getElementById('coupon_used').value = 1;
+        } else {
+            document.getElementById('coupon_used').value = 0;
+        }
+
+        const total = subtotal + shippingCost;
+
+        document.getElementById('subtotal').textContent = Math.round(subtotal).toLocaleString();
+        document.getElementById('shipping_cost').textContent = shippingCost.toLocaleString();
+        document.getElementById('total').textContent = Math.round(total).toLocaleString();
+        document.getElementById('total_price').value = Math.round(total);
+        
+        // Update shipping address
+        document.getElementById('shipping_address').value = address.value;
+    }
+
+    // Event listeners
+    quantity.addEventListener('change', calculateTotal);
+    quantity.addEventListener('input', calculateTotal);
+    address.addEventListener('input', calculateTotal);
+    if (useCoupon) {
+        useCoupon.addEventListener('change', calculateTotal);
+    }
+
+    // Form validation
+    document.getElementById('orderForm').addEventListener('submit', function(e) {
+        if (!bankTransfer.checked && !cod.checked) {
+            e.preventDefault();
+            alert('Please select a payment method');
+            return false;
+        }
+        
+        if (bankTransfer.checked && !bankId.value) {
+            e.preventDefault();
+            alert('Please select a bank');
+            return false;
+        }
+        
+        return true;
+    });
+
+    // Initial calculation
+    calculateTotal();
+});
+</script>
+@endpush

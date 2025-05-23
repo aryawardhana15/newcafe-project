@@ -10,10 +10,25 @@ class Payment extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'payment_method'
+    ];
 
-    public function order()
+    public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    const BANK_TRANSFER = 1;
+    const CASH_ON_DELIVERY = 2;
+
+    public function isBankTransfer()
+    {
+        return $this->id === self::BANK_TRANSFER;
+    }
+
+    public function isCashOnDelivery()
+    {
+        return $this->id === self::CASH_ON_DELIVERY;
     }
 }

@@ -10,7 +10,26 @@ class Order extends Model
     use HasFactory;
 
     protected $guarded = ['id'];
+    
+    // Explicitly define fillable fields
+    protected $fillable = [
+        'product_id',
+        'user_id',
+        'quantity',
+        'address',
+        'shipping_address',
+        'total_price',
+        'payment_id',
+        'bank_id',
+        'note_id',
+        'status_id',
+        'transaction_doc',
+        'is_done',
+        'refusal_reason',
+        'coupon_used'
+    ];
 
+    // Define relationships
     public function bank()
     {
         return $this->belongsTo(Bank::class);

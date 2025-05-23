@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Status;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use App\Models\Status;
 
 class StatusSeeder extends Seeder
 {
@@ -15,29 +15,46 @@ class StatusSeeder extends Seeder
      */
     public function run()
     {
-        Status::create([
-            "order_status" => "approve",
-            "style" => "success",
-        ]);
+        // Hapus data yang ada terlebih dahulu
+        DB::table('statuses')->truncate();
 
-        Status::create([
-            "order_status" => "pending",
-            "style" => "warning",
-        ]);
-
-        Status::create([
-            "order_status" => "rejected",
-            "style" => "danger",
-        ]);
-
-        Status::create([
-            "order_status" => "done",
-            "style" => "info",
-        ]);
-
-        Status::create([
-            "order_status" => "canceled",
-            "style" => "secondary",
+        // Insert data baru
+        DB::table('statuses')->insert([
+            [
+                'id' => 1,
+                'order_status' => 'approve',
+                'style' => 'success',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'id' => 2,
+                'order_status' => 'pending',
+                'style' => 'warning',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'id' => 3,
+                'order_status' => 'reject',
+                'style' => 'danger',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'id' => 4,
+                'order_status' => 'done',
+                'style' => 'primary',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'id' => 5,
+                'order_status' => 'cancel',
+                'style' => 'secondary',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
         ]);
     }
 }

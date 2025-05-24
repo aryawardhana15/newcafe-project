@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use App\Models\Payment;
 
 class PaymentSeeder extends Seeder
 {
@@ -15,19 +14,27 @@ class PaymentSeeder extends Seeder
      */
     public function run()
     {
+        // Disable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        
+        DB::table('payments')->delete();
+
         DB::table('payments')->insert([
             [
-                'id' => Payment::BANK_TRANSFER,
+                'id' => 1,
                 'payment_method' => 'Transfer Bank',
                 'created_at' => now(),
                 'updated_at' => now()
             ],
             [
-                'id' => Payment::CASH_ON_DELIVERY,
-                'payment_method' => 'Cash on Delivery',
+                'id' => 2,
+                'payment_method' => 'Cash on Delivery (COD)',
                 'created_at' => now(),
                 'updated_at' => now()
             ]
         ]);
+
+        // Enable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }
 }

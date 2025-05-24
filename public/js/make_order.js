@@ -219,3 +219,106 @@ function setOngkir({
         },
     });
 }
+
+// Constants
+const SHIPPING_COST = 10000;
+const COUPON_DISCOUNT = 0.1; // 10% discount
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Get DOM elements
+    const quantity = document.getElementById('quantity');
+    const price = document.getElementById('price');
+    const address = document.getElementById('address');
+    const useCoupon = document.getElementById('use_coupon');
+    const bankTransfer = document.getElementById('bank_transfer');
+    const cod = document.getElementById('cod');
+    const bankSelection = document.getElementById('bank_selection');
+    const bankId = document.getElementById('bank_id');
+    const orderForm = document.getElementById('orderForm');
+
+    // Payment method handling
+    function toggleBankSelection() {
+        bankSelection.style.display = bankTransfer.checked ? 'block' : 'none';
+        bankId.required = bankTransfer.checked;
+    }
+
+    bankTransfer.addEventListener('change', toggleBankSelection);
+    cod.addEventListener('change', toggleBankSelection);
+    
+    // Initial state
+    toggleBankSelection();
+
+    // Calculate total
+    function calculateTotal() {
+        const qty = parseInt(quantity.value) || 0;
+        const basePrice = parseFloat(price.dataset.trueprice) || 0;
+        const shippingCost = qty > 0 ? SHIPPING_COST : 0;
+        
+        let subtotal = qty * basePrice;
+        
+        // Apply coupon discount if checked
+        if (useCoupon && useCoupon.checked) {
+            subtotal = subtotal * (1 - COUPON_DISCOUNT);
+            document.getElementById('coupon_used').value = 1;
+        } else {
+            document.getElementById('coupon_used').value = 0;
+        }
+
+        const total = subtotal + shippingCost;
+
+        // Update display
+        document.getElementById('subtotal').textContent = formatNumber(Math.round(subtotal));
+        document.getElementById('shipping_cost').textContent = formatNumber(shippingCost);
+        document.getElementById('total').textContent = formatNumber(Math.round(total));
+        
+        // Update hidden inputs
+        document.getElementById('total_price').value = Math.round(total);
+        document.getElementById('shipping_address').value = address.value;
+    }
+
+    // Format number to Indonesian Rupiah format
+    function formatNumber(number) {
+        return new Intl.NumberFormat('id-ID').format(number);
+    }
+
+    // Event listeners
+    quantity.addEventListener('change', calculateTotal);
+    quantity.addEventListener('input', calculateTotal);
+    address.addEventListener('input', calculateTotal);
+    if (useCoupon) {
+        useCoupon.addEventListener('change', calculateTotal);
+    }
+
+    // Form validation
+    orderForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // Basic validation
+        if (!bankTransfer.checked && !cod.checked) {
+            alert('Silakan pilih metode pembayaran');
+            return;
+        }
+        
+        if (bankTransfer.checked && !bankId.value) {
+            alert('Silakan pilih bank untuk transfer');
+            return;
+        }
+
+        const qty = parseInt(quantity.value) || 0;
+        if (qty <= 0) {
+            alert('Jumlah pesanan harus lebih dari 0');
+            return;
+        }
+
+        if (!address.value.trim()) {
+            alert('Alamat pengiriman tidak boleh kosong');
+            return;
+        }
+
+        // If all validation passes, submit the form
+        this.submit();
+    });
+
+    // Initial calculation
+    calculateTotal();
+});

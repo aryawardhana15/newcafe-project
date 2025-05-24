@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use App\Models\Status;
 
 class StatusSeeder extends Seeder
 {
@@ -15,10 +14,11 @@ class StatusSeeder extends Seeder
      */
     public function run()
     {
-        // Hapus data yang ada terlebih dahulu
-        DB::table('statuses')->truncate();
+        // Disable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        
+        DB::table('statuses')->delete();
 
-        // Insert data baru
         DB::table('statuses')->insert([
             [
                 'id' => 1,
@@ -54,7 +54,10 @@ class StatusSeeder extends Seeder
                 'style' => 'secondary',
                 'created_at' => now(),
                 'updated_at' => now()
-            ],
+            ]
         ]);
+
+        // Enable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }
 }

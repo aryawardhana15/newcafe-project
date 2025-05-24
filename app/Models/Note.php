@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Order;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -10,9 +9,12 @@ class Note extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'note',
+        'style'
+    ];
 
-    public function order()
+    public function orders()
     {
         return $this->hasMany(Order::class);
     }

@@ -33,11 +33,25 @@ class OrderController extends Controller
                 'coupon_used' => 'required|integer|min:0'
             ];
 
+            // Validate bank_id only if payment method is bank transfer
             if ($request->payment_method == 1) {
                 $rules['bank_id'] = 'required|exists:banks,id';
             }
 
             $validatedData = $request->validate($rules);
+
+            // Check stock availability
+            if ($product->stock < $validatedData['quantity']) {
+                throw new \Exception('Stok produk tidak mencukupi');
+            }
+
+            // Check coupon availability if used
+            if ($validatedData['coupon_used'] > 0) {
+                $user = auth()->user();
+                if ($user->coupon < $validatedData['coupon_used']) {
+                    throw new \Exception('Kupon tidak mencukupi');
+                }
+            }
 
             // Prepare order data
             $orderData = [
@@ -51,7 +65,7 @@ class OrderController extends Controller
                 'bank_id' => $validatedData['payment_method'] == 1 ? $validatedData['bank_id'] : null,
                 'note_id' => $validatedData['payment_method'] == 1 ? 2 : 1, // 2 for bank transfer, 1 for COD
                 'status_id' => 2, // Pending status
-                'transaction_doc' => $validatedData['payment_method'] == 1 ? env('IMAGE_PROOF', 'default.jpg') : null,
+                'transaction_doc' => null,
                 'is_done' => 0,
                 'coupon_used' => $validatedData['coupon_used']
             ];
@@ -60,7 +74,7 @@ class OrderController extends Controller
             $order = Order::create($orderData);
 
             if (!$order) {
-                throw new \Exception('Failed to create order');
+                throw new \Exception('Gagal membuat pesanan');
             }
 
             // Update product stock
@@ -68,17 +82,13 @@ class OrderController extends Controller
 
             // Update user's coupon if used
             if ($validatedData['coupon_used'] > 0) {
-                $user = auth()->user();
-                if ($user->coupon < $validatedData['coupon_used']) {
-                    throw new \Exception('Insufficient coupons');
-                }
-                $user->decrement('coupon', $validatedData['coupon_used']);
+                auth()->user()->decrement('coupon', $validatedData['coupon_used']);
             }
 
             \DB::commit();
 
             return redirect('/order/order_data')
-                ->with('success', 'Order has been created successfully!');
+                ->with('success', 'Pesanan berhasil dibuat! Silakan lakukan pembayaran sesuai metode yang dipilih.');
 
         } catch (\Exception $e) {
             \DB::rollback();
@@ -86,15 +96,15 @@ class OrderController extends Controller
             
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to create order: ' . $e->getMessage());
+                ->with('error', $e->getMessage());
         }
     }
 
 
     public function orderData()
     {
-        $title = "Order Data";
         try {
+            $title = 'Data Pesanan';
             $query = Order::with(['bank', 'note', 'payment', 'user', 'status', 'product'])
                 ->where('is_done', 0);
 
@@ -102,13 +112,13 @@ class OrderController extends Controller
                 $query->where('user_id', auth()->id());
             }
 
-            $orders = $query->orderBy('created_at', 'desc')->get();
+            $orders = $query->latest()->get();
             $status = Status::all();
 
             return view('/order/order_data', compact('title', 'orders', 'status'));
         } catch (\Exception $e) {
             \Log::error('Error fetching order data: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to load orders');
+            return redirect()->back()->with('error', 'Gagal memuat data pesanan: ' . $e->getMessage());
         }
     }
 
@@ -366,8 +376,8 @@ class OrderController extends Controller
 
     public function orderHistory()
     {
-        $title = "History Data";
         try {
+            $title = 'Riwayat Pesanan';
             $query = Order::with(['bank', 'note', 'payment', 'user', 'status', 'product'])
                 ->where('is_done', 1);
 
@@ -375,13 +385,13 @@ class OrderController extends Controller
                 $query->where('user_id', auth()->id());
             }
 
-            $orders = $query->orderBy('created_at', 'desc')->get();
+            $orders = $query->latest()->get();
             $status = Status::all();
 
             return view('/order/order_data', compact('title', 'orders', 'status'));
         } catch (\Exception $e) {
             \Log::error('Error fetching order history: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to load order history');
+            return redirect()->back()->with('error', 'Gagal memuat riwayat pesanan: ' . $e->getMessage());
         }
     }
 

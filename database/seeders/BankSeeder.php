@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use App\Models\Bank;
 
 class BankSeeder extends Seeder
 {
@@ -15,43 +14,43 @@ class BankSeeder extends Seeder
      */
     public function run()
     {
-        // Hapus data yang ada terlebih dahulu
-        DB::table('banks')->truncate();
+        // Disable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        
+        DB::table('banks')->delete();
 
-        // Insert data bank
         DB::table('banks')->insert([
             [
                 'id' => 1,
-                'bank_name' => 'Bank Mandiri',
+                'bank_name' => 'Mandiri',
                 'account_number' => '092 7840 1923 7422',
-                'logo' => 'bank-mandiri.svg',
                 'created_at' => now(),
                 'updated_at' => now()
             ],
             [
                 'id' => 2,
-                'bank_name' => 'Bank BRI',
+                'bank_name' => 'BRI',
                 'account_number' => '058 9092 8274 9125',
-                'logo' => 'bank-bri.svg',
                 'created_at' => now(),
                 'updated_at' => now()
             ],
             [
                 'id' => 3,
-                'bank_name' => 'Bank BCA',
+                'bank_name' => 'BCA',
                 'account_number' => '088 7182 4291 9123',
-                'logo' => 'bank-bca.svg',
                 'created_at' => now(),
                 'updated_at' => now()
             ],
             [
                 'id' => 4,
-                'bank_name' => 'Bank BNI',
+                'bank_name' => 'BNI',
                 'account_number' => '098 2937 9823 2341',
-                'logo' => 'bank-bni.svg',
                 'created_at' => now(),
                 'updated_at' => now()
             ]
         ]);
+
+        // Enable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }
 }

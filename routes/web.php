@@ -16,27 +16,21 @@ use App\Http\Controllers\Admin\DashboardController;
 |
 */
 
-// pre authenticate
-Route::middleware(['alreadyLogin'])->group(function () {
-    // landing
-    Route::get('/', function () {
-        return view('landing.index', [
-            "title" => "Landing",
-        ]);
-    });
+// Landing page
+Route::get('/', function () {
+    return view('landing.index', [
+        "title" => "Landing",
+    ]);
+});
 
-    // Login
-    Route::get('/{url}', [AuthController::class, "loginGet"])->where(["url" => "auth|auth/login"])->name("auth");
-    Route::post('/auth/login', [AuthController::class, "loginPost"]);
-
-    // Register
+// Auth Routes
+Route::middleware(['web'])->group(function () {
+    Route::get('/auth', [AuthController::class, "loginGet"])->name("auth");
+    Route::get('/auth/login', [AuthController::class, "loginGet"]);
+    Route::post('/auth/login', [AuthController::class, "loginPost"])->name('auth.login');
     Route::get('/auth/register', [AuthController::class, "registrationGet"]);
     Route::post('/auth/register', [AuthController::class, "registrationPost"]);
 });
-
-
-
-
 
 // main
 Route::middleware(['auth'])->group(function () {

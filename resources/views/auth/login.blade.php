@@ -42,7 +42,6 @@
 
                 <!-- Form -->
                 <form class="mt-6" method="post" action="/auth/login">
-                    @csrf
                     <!-- Email Input -->
                     <div class="mb-6">
                         <label for="email" class="block text-sm font-medium text-gray-700">Email</label>

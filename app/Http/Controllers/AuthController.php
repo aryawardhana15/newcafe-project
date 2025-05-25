@@ -14,14 +14,14 @@ class AuthController extends Controller
 {
     public function loginGet()
     {
+        // Redirect if already logged in
         if (Auth::check()) {
             if (auth()->user()->role_id === 1) {
-                return redirect('/transaction');
+                return redirect()->route('admin.dashboard');
             }
             return redirect('/home');
         }
-        $title = "Login";
-        return view("/auth/login", compact("title"));
+        return view("/auth/login");
     }
 
     public function loginPost(Request $request)
@@ -34,13 +34,10 @@ class AuthController extends Controller
 
             if (Auth::attempt($credentials)) {
                 $request->session()->regenerate();
-                
-                // Redirect ke halaman transaksi jika user adalah admin
                 if (auth()->user()->role_id === 1) {
-                    return redirect('/transaction');
+                    return redirect()->route('admin.dashboard');
                 }
-                
-                return redirect()->intended("/home");
+                return redirect('/home');
             }
 
             return back()
@@ -56,14 +53,14 @@ class AuthController extends Controller
 
     public function registrationGet()
     {
+        // Redirect if already logged in
         if (Auth::check()) {
             if (auth()->user()->role_id === 1) {
-                return redirect('/transaction');
+                return redirect()->route('admin.dashboard');
             }
             return redirect('/home');
         }
-        $title = "Registration";
-        return view("/auth/register", compact("title"));
+        return view("/auth/register");
     }
 
     public function registrationPost(Request $request)

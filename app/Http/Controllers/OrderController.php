@@ -4,17 +4,32 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Auth\Events\Failed;
-use Illuminate\Support\Facades\{Auth, Storage, Validator};
+use Illuminate\Support\Facades\{Auth, Storage, Validator, DB};
 use App\Models\{Order, Status, Product, Role, Transaction, User, Bank};
+use App\Events\OrderStatusUpdated;
 
 class OrderController extends Controller
 {
     public function makeOrderGet(Product $product)
     {
-        $title = "Make Order";
+        // Validasi stok
+        if ($product->stock <= 0) {
+            return redirect()->back()->with('error', 'Maaf, stok produk tidak tersedia');
+        }
+
+        $title = "Buat Pesanan";
         $banks = Bank::all();
         
-        return view("/order/make_order", compact("title", "product", "banks"));
+        // Get active orders for current user
+        $activeOrders = Order::with(['product', 'status', 'payment', 'bank'])
+            ->where('user_id', auth()->id())
+            ->where('is_done', 0)
+            ->whereNotIn('status_id', [3, 4, 5]) // Exclude rejected, done, and cancelled orders
+            ->latest()
+            ->take(5)
+            ->get();
+        
+        return view("/order/make_order", compact("title", "product", "banks", "activeOrders"));
     }
 
 
@@ -90,13 +105,20 @@ class OrderController extends Controller
             return redirect('/order/order_data')
                 ->with('success', 'Pesanan berhasil dibuat! Silakan lakukan pembayaran sesuai metode yang dipilih.');
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            \DB::rollback();
+            \Log::error('Order validation failed: ' . json_encode($e->errors()));
+            return redirect()->back()
+                ->withErrors($e->errors())
+                ->withInput();
+            
         } catch (\Exception $e) {
             \DB::rollback();
             \Log::error('Order creation failed: ' . $e->getMessage());
             
             return redirect()->back()
                 ->withInput()
-                ->with('error', $e->getMessage());
+                ->with('error', 'Gagal membuat pesanan: ' . $e->getMessage());
         }
     }
 
@@ -105,38 +127,115 @@ class OrderController extends Controller
     {
         try {
             $title = 'Data Pesanan';
+            
+            // Get active orders
             $query = Order::with(['bank', 'note', 'payment', 'user', 'status', 'product'])
+                ->where('is_done', 0)
+                ->whereNotIn('status_id', [3, 4, 5]); // Exclude rejected, done, and cancelled orders
+
+            // Filter based on role
+            if (auth()->user()->role_id != Role::ADMIN_ID) {
+                $query->where('user_id', auth()->id());
+            }
+
+            // Get orders with all needed relations
+            $orders = $query->latest()->get();
+
+            // Get active orders for sidebar
+            $activeOrders = Order::with(['product', 'status', 'payment', 'bank'])
+                ->where('user_id', auth()->id())
+                ->where('is_done', 0)
+                ->whereNotIn('status_id', [3, 4, 5]) // Exclude rejected, done, and cancelled orders
+                ->latest()
+                ->take(5)
+                ->get();
+
+            // Load status for filter
+            $status = Status::orderBy('id')->get();
+
+            return view('/order/order_data', compact('title', 'orders', 'status', 'activeOrders'));
+        } catch (\Exception $e) {
+            \Log::error('Error fetching order data: ' . $e->getMessage());
+            return back()->with('error', 'Gagal memuat data pesanan: ' . $e->getMessage());
+        }
+    }
+
+
+    public function orderDataFilter($status_id)
+    {
+        try {
+            $title = "Order Data";
+            $query = Order::with(['bank', 'note', 'payment', 'user', 'status', 'product'])
+                ->where('status_id', $status_id)
                 ->where('is_done', 0);
 
+            // Filter berdasarkan role
             if (auth()->user()->role_id != Role::ADMIN_ID) {
                 $query->where('user_id', auth()->id());
             }
 
             $orders = $query->latest()->get();
-            $status = Status::all();
+            $status = Status::orderBy('id')->get();
 
-            return view('/order/order_data', compact('title', 'orders', 'status'));
+            return view("/order/order_data", compact("title", "orders", "status"));
         } catch (\Exception $e) {
-            \Log::error('Error fetching order data: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Gagal memuat data pesanan: ' . $e->getMessage());
+            \Log::error('Error filtering order data: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memfilter data pesanan: ' . $e->getMessage()
+            ], 500);
         }
     }
 
 
-    public function orderDataFilter(Request $request, $status_id)
+    public function getOrderDetail(Order $order)
     {
-        $title = "Order Data";
-        $orders = Order::with("bank", "note", "payment", "user", "status", "product")->where("status_id", $status_id)->orderBy("id", "ASC")->get();
-        $status = Status::all();
+        try {
+            // Authorize access
+            if (auth()->user()->role_id != Role::ADMIN_ID && auth()->id() != $order->user_id) {
+                throw new \Exception('Unauthorized access');
+            }
 
-        return view("/order/order_data", compact("title", "orders", "status"));
+            $order->load(['product', 'user', 'note', 'status', 'bank', 'payment']);
+            
+            return response()->json([
+                'success' => true,
+                'data' => $order
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memuat detail pesanan: ' . $e->getMessage()
+            ], 403);
+        }
     }
 
 
-    public function getOrderData(Order $order)
+    public function getOrderStatus(Order $order)
     {
-        $order->load("product", "user", "note", "status", "bank", "payment");
-        return $order;
+        try {
+            // Authorize access
+            if (auth()->user()->role_id != Role::ADMIN_ID) {
+                throw new \Exception('Unauthorized access');
+            }
+
+            $order->load(['status']);
+            $allStatus = Status::orderBy('id')->get();
+            
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'order' => $order,
+                    'allStatus' => $allStatus
+                ]
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error getting order status: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memuat status pesanan: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 
@@ -184,192 +283,138 @@ class OrderController extends Controller
     }
 
 
-    public function rejectOrder(Request $request, Order $order, Product $product)
+    public function rejectOrder(Request $request, Order $order)
     {
-        if ($request->refusal_reason == "") {
-            $message = "Refusal reason cannot be empty!";
-
-            myFlasherBuilder(message: $message, failed: true);
-            return redirect("/order/order_data");
-        }
-
-        if ($order->status_id == 4) {
-            $message = "Order status is already succeded by admin";
-
-            myFlasherBuilder(message: $message, failed: true);
-            return redirect("/order/order_data");
-        }
-
-        if ($order->status_id == 5) {
-            $message = "Order status is already canceled by user";
-
-            myFlasherBuilder(message: $message, failed: true);
-            return redirect("/order/order_data");
-        }
-
-        if ($order->status_id == 3) {
-            $message = "Order status is already rejected";
-
-            myFlasherBuilder(message: $message, failed: true);
-            return redirect("/order/order_data");
-        }
-
-        $updated_data = [
-            "status_id" => 3,
-            "refusal_reason" => $request->refusal_reason
-        ];
-
-        $order->fill($updated_data);
-
-        if ($order->isDirty()) {
-            if ($order->getOriginal("status_id") == 1) {
-                $this->stockReturn($order, $product);
-            }
-
-            $order->save();
-
-            $this->couponBack($order);
-
-            $message = "Order rejected successfully!";
-
-            myFlasherBuilder(message: $message, success: true);
-            return redirect("/order/order_data");
-        }
-    }
-
-
-    private function stockReturn(Order $order, Product $product)
-    {
-        $product->stock = $product->stock + $order->quantity;
-
-        if ($product->isDirty()) {
-            $product->save();
-        }
-    }
-
-
-    public function approveOrder(Order $order, Product $product)
-    {
-        if ($order->status_id == 1) {
-            $message = "Order status is already approved by admin";
-            myFlasherBuilder(message: $message, failed: true);
-
-            return redirect("/order/order_data");
-        }
-
-        if ($order->status_id == 3) {
-            $message = "Can't approve the order that have been rejected before";
-            myFlasherBuilder(message: $message, failed: true);
-
-            return redirect("/order/order_data");
-        }
-
-        if ($order->status_id == 5) {
-            $message = "Can't approve the order that have been canceled by user";
-            myFlasherBuilder(message: $message, failed: true);
-
-            return redirect("/order/order_data");
-        }
-
-        if ($order->transaction_doc == env("IMAGE_PROOF")) {
-            $message = "No transfer proof uploaded!";
-            myFlasherBuilder(message: $message, failed: true);
-
-            return redirect("/order/order_data");
-        }
-
-        if ($product->stock - $order->quantity < 0) {
-            $message = "Quantity order is out of stock";
-            myFlasherBuilder(message: $message, failed: true);
-
-            return redirect("/order/order_data");
-        }
-
-        // Approve order
-        $updated_data = [
-            "status_id" => 1,
-            "refusal_reason" => null,
-            "note_id" => ($order->payment_id == 1) ? 4 : 1,
-        ];
-
-        $order->fill($updated_data);
-
-        if ($order->isDirty()) {
-            $order->save();
-        }
-
-        // Reduce product stock
-        $product->stock = $product->stock - $order->quantity;
-
-        if ($product->isDirty()) {
-            $product->save();
-        }
-
-        $message = "Order approved successfully!";
-        myFlasherBuilder(message: $message, success: true);
-
-        return redirect("/order/order_data");
-    }
-
-
-    public function endOrder(Order $order, Product $product)
-    {
-        \DB::beginTransaction();
-        
         try {
-            if ($order->status->order_status == "done") {
-                throw new \Exception("The order has already been completed by admin!");
+            DB::beginTransaction();
+
+            // Validasi alasan penolakan
+            $request->validate([
+                'refusal_reason' => 'required|string|max:255'
+            ], [
+                'refusal_reason.required' => 'Alasan penolakan harus diisi'
+            ]);
+
+            // Validasi status pesanan
+            if (!in_array($order->status_id, [1, 2])) {
+                throw new \Exception('Pesanan tidak dapat ditolak karena status tidak sesuai');
             }
 
-            if ($order->status->order_status != "approve") {
-                throw new \Exception("Order has not been approved by the admin!");
+            // Update status pesanan
+            $order->update([
+                'status_id' => 3, // Status Rejected
+                'refusal_reason' => $request->refusal_reason
+            ]);
+
+            // Kembalikan stok jika sebelumnya sudah diapprove
+            if ($order->status_id == 1) {
+                $order->product->increment('stock', $order->quantity);
             }
 
-            // change order status
-            $updated_data = [
-                "status_id" => 4, // Done status
-                "note_id" => 5,
-                "is_done" => 1,
-                "refusal_reason" => null,
-            ];
+            // Kembalikan kupon jika digunakan
+            if ($order->coupon_used > 0) {
+                $order->user->increment('coupon', $order->coupon_used);
+            }
 
-            $order->fill($updated_data);
-            $order->save();
+            // Kirim notifikasi ke user
+            event(new OrderStatusUpdated($order, 'Pesanan Anda ditolak: ' . $request->refusal_reason));
 
-            $point_rules = [
-                "1" => 3,
-                "2" => 4,
-                "3" => 5
-            ];
+            DB::commit();
 
-            // add point to user
-            $user = User::find($order->user_id);
-            $point_total = ($point_rules[$product->id] * (int)$order->quantity) + $user->point;
-            $user->point = $point_total;
-            $user->save();
-
-            $transactional_data = [
-                "category_id" => 1,
-                "description" => "sales of {$order->quantity} unit of product {$product->product_name}",
-                "income" => $order->total_price,
-                "outcome" => null,
-            ];
-
-            // add transactional data
-            Transaction::create($transactional_data);
-
-            \DB::commit();
-
-            $message = "Order has been completed successfully!";
-            myFlasherBuilder(message: $message, success: true);
-
-            return redirect("/order/order_history");
-
+            return redirect()->back()->with('success', 'Pesanan berhasil ditolak');
         } catch (\Exception $e) {
-            \DB::rollback();
-            \Log::error('Error completing order: ' . $e->getMessage());
-            myFlasherBuilder(message: $e->getMessage(), failed: true);
-            return redirect("/order/order_data");
+            DB::rollback();
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+
+    public function approveOrder(Order $order)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Validasi status pesanan
+            if ($order->status_id != 2) {
+                throw new \Exception('Pesanan tidak dapat disetujui karena status tidak sesuai');
+            }
+
+            // Validasi bukti pembayaran untuk metode bank transfer
+            if ($order->payment_id == 1 && (!$order->transaction_doc || $order->transaction_doc == env('IMAGE_PROOF'))) {
+                throw new \Exception('Bukti pembayaran belum diupload');
+            }
+
+            // Update status pesanan
+            $order->update([
+                'status_id' => 1, // Status Approved
+                'note_id' => $order->payment_id == 1 ? 4 : 1, // 4 untuk bank transfer, 1 untuk COD
+                'refusal_reason' => null
+            ]);
+
+            // Kurangi stok produk
+            $product = $order->product;
+            if ($product->stock < $order->quantity) {
+                throw new \Exception('Stok produk tidak mencukupi');
+            }
+            $product->decrement('stock', $order->quantity);
+
+            // Kirim notifikasi ke user
+            event(new OrderStatusUpdated($order, 'Pesanan Anda telah disetujui'));
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Pesanan berhasil disetujui');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+
+    public function endOrder(Order $order)
+    {
+        try {
+            DB::beginTransaction();
+
+            // Validasi status pesanan
+            if ($order->status_id != 1) {
+                throw new \Exception('Pesanan belum disetujui atau sudah selesai');
+            }
+
+            // Update status pesanan
+            $order->update([
+                'status_id' => 4, // Status Done
+                'note_id' => 5,
+                'is_done' => 1
+            ]);
+
+            // Tambah point ke user
+            $pointRules = [
+                1 => 3, // Arabica
+                2 => 4, // Robusta
+                3 => 5  // Liberica
+            ];
+
+            $pointEarned = ($pointRules[$order->product_id] ?? 1) * $order->quantity;
+            $order->user->increment('point', $pointEarned);
+
+            // Catat transaksi
+            Transaction::create([
+                'category_id' => 1, // Sales
+                'description' => "Penjualan {$order->quantity} {$order->product->product_name}",
+                'income' => $order->total_price,
+                'outcome' => null
+            ]);
+
+            // Kirim notifikasi ke user
+            event(new OrderStatusUpdated($order, "Pesanan Anda telah selesai. Anda mendapatkan {$pointEarned} poin!"));
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Pesanan berhasil diselesaikan');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()->with('error', $e->getMessage());
         }
     }
 
@@ -378,20 +423,29 @@ class OrderController extends Controller
     {
         try {
             $title = 'Riwayat Pesanan';
-            $query = Order::with(['bank', 'note', 'payment', 'user', 'status', 'product'])
-                ->where('is_done', 1);
+            
+            // Get completed, rejected, or cancelled orders
+            $query = Order::with(['bank', 'note', 'payment', 'user', 'status', 'product', 'review'])
+                ->where(function($q) {
+                    $q->where('is_done', 1)
+                      ->orWhereIn('status_id', [3, 4, 5]); // Include rejected, done, and cancelled orders
+                });
 
+            // Filter based on role
             if (auth()->user()->role_id != Role::ADMIN_ID) {
                 $query->where('user_id', auth()->id());
             }
 
+            // Get orders with all needed relations
             $orders = $query->latest()->get();
-            $status = Status::all();
 
-            return view('/order/order_data', compact('title', 'orders', 'status'));
+            // Load status for filter
+            $status = Status::orderBy('id')->get();
+
+            return view('/order/order_history', compact('title', 'orders', 'status'));
         } catch (\Exception $e) {
             \Log::error('Error fetching order history: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Gagal memuat riwayat pesanan: ' . $e->getMessage());
+            return back()->with('error', 'Gagal memuat riwayat pesanan: ' . $e->getMessage());
         }
     }
 
@@ -405,34 +459,68 @@ class OrderController extends Controller
 
     public function uploadProof(Request $request, Order $order)
     {
-        $validator = Validator::make($request->all(), [
-            'old_image_proof' => 'required',
-            'image_upload_proof' => 'required|image|file|max:2048',
-        ]);
-
-        if ($validator->fails()) {
-            $message = "Failed when upload an image";
-            myFlasherBuilder(message: $message, failed: true);
-
-            return redirect("/order/order_data");
-        }
-
-        if ($request->file("image_upload_proof")) {
-            if ($validator->validated()["old_image_proof"] != env("IMAGE_PROOF")) {
-                Storage::delete($validator->validated()["old_image_proof"]);
+        try {
+            // Authorize access
+            if (auth()->id() != $order->user_id) {
+                throw new \Exception('Unauthorized access');
             }
 
-            $new_image = $request->file("image_upload_proof")->store("proof");
+            // Validate request
+            $validator = Validator::make($request->all(), [
+                'image_upload_proof' => 'required|image|file|max:2048'
+            ], [
+                'image_upload_proof.required' => 'File bukti pembayaran harus diupload',
+                'image_upload_proof.image' => 'File harus berupa gambar',
+                'image_upload_proof.max' => 'Ukuran file maksimal 2MB'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first()
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                // Delete old image if exists
+                if ($order->transaction_doc && $order->transaction_doc != env('IMAGE_PROOF')) {
+                    Storage::delete($order->transaction_doc);
+                }
+
+                // Store new image
+                $newImage = $request->file('image_upload_proof')->store('proof');
+
+                // Update order
+                $order->update([
+                    'transaction_doc' => $newImage,
+                    'note_id' => 3 // Payment proof uploaded
+                ]);
+
+                // Trigger notification event
+                event(new OrderStatusUpdated($order, "Bukti pembayaran untuk Order #{$order->id} telah diupload"));
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Bukti pembayaran berhasil diupload'
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollback();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            \Log::error('Upload proof failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengupload bukti pembayaran: ' . $e->getMessage()
+            ], 500);
         }
-
-        $order->transaction_doc = $new_image;
-        $order->note_id = 3;
-        $order->save();
-
-        $message = "Proof transfer uploaded successfully";
-        myFlasherBuilder(message: $message, success: true);
-
-        return redirect("/order/order_data");
     }
 
 
@@ -513,5 +601,113 @@ class OrderController extends Controller
         myFlasherBuilder(message: $message, success: true);
 
         return redirect("/order/edit_order/" . $order->id);
+    }
+
+    public function store(Request $request)
+    {
+        $validatedData = $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'quantity' => 'required|numeric|min:1',
+            'address' => 'required|string',
+            'shipping_address' => 'required|string',
+            'total_price' => 'required|numeric',
+            'payment_method' => 'required|in:1,2',
+            'bank_id' => 'required_if:payment_method,1|exists:banks,id',
+            'coupon_used' => 'required|numeric|min:0'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            // Validasi stok
+            $product = Product::findOrFail($validatedData['product_id']);
+            if ($product->stock < $validatedData['quantity']) {
+                throw new \Exception('Stok produk tidak mencukupi');
+            }
+
+            // Validasi kupon
+            if ($validatedData['coupon_used'] > 0) {
+                $user = auth()->user();
+                if ($user->coupon < $validatedData['coupon_used']) {
+                    throw new \Exception('Kupon tidak mencukupi');
+                }
+            }
+
+            // Buat order
+            $order = Order::create([
+                'user_id' => auth()->id(),
+                'product_id' => $validatedData['product_id'],
+                'quantity' => $validatedData['quantity'],
+                'address' => $validatedData['address'],
+                'shipping_address' => $validatedData['shipping_address'],
+                'total_price' => $validatedData['total_price'],
+                'payment_id' => $validatedData['payment_method'],
+                'bank_id' => $validatedData['payment_method'] == 1 ? $validatedData['bank_id'] : null,
+                'status_id' => 2, // Pending
+                'note_id' => $validatedData['payment_method'] == 1 ? 2 : 1, // 2 for bank transfer, 1 for COD
+                'transaction_doc' => null,
+                'is_done' => 0,
+                'coupon_used' => $validatedData['coupon_used']
+            ]);
+
+            // Update stok produk
+            $product->decrement('stock', $validatedData['quantity']);
+
+            // Update kupon user jika digunakan
+            if ($validatedData['coupon_used'] > 0) {
+                auth()->user()->decrement('coupon', $validatedData['coupon_used']);
+            }
+
+            DB::commit();
+
+            return redirect()->route('order.data')
+                ->with('success', 'Pesanan berhasil dibuat! Silakan lakukan pembayaran sesuai metode yang dipilih.');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Gagal membuat pesanan: ' . $e->getMessage());
+        }
+    }
+
+    public function updateStatus(Request $request, Order $order)
+    {
+        // Authorize access
+        if (auth()->user()->role_id != Role::ADMIN_ID) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized access'
+            ], 403);
+        }
+
+        $request->validate([
+            'status_id' => 'required|exists:status,id'
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $oldStatus = $order->status->order_status;
+            $order->update(['status_id' => $request->status_id]);
+            $newStatus = $order->fresh()->status->order_status;
+
+            // Send notification
+            event(new OrderStatusUpdated($order, "Status pesanan #$order->id berubah dari $oldStatus menjadi $newStatus"));
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Status pesanan berhasil diupdate'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengupdate status pesanan: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -347,3 +347,254 @@ $("#button_reject_order").click(function (e) {
         }
     });
 });
+
+// Handle Upload Proof Button Click
+$('.upload-proof').click(function() {
+    const orderId = $(this).data('order-id');
+    
+    // Set form action URL
+    $('#uploadProofForm').attr('action', `/order/upload_proof/${orderId}`);
+    
+    // Reset form and preview
+    $('#uploadProofForm')[0].reset();
+    $('#image_preview').attr('src', '').addClass('d-none');
+    $('#old_image_proof').val(defaultImageProof);
+});
+
+// Preview Image Before Upload
+$('#image_upload_proof').change(function() {
+    const file = this.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            $('#image_preview')
+                .attr('src', e.target.result)
+                .removeClass('d-none');
+        }
+        reader.readAsDataURL(file);
+    } else {
+        $('#image_preview')
+            .attr('src', '')
+            .addClass('d-none');
+    }
+});
+
+// Form Validation
+$('#uploadProofForm').submit(function(e) {
+    const fileInput = $('#image_upload_proof');
+    if (!fileInput.val()) {
+        e.preventDefault();
+        alert('Silakan pilih file gambar terlebih dahulu');
+        return false;
+    }
+    
+    // Show loading state
+    const submitBtn = $(this).find('button[type="submit"]');
+    submitBtn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...');
+    
+    return true;
+});
+
+// Order Data Page Functionality
+document.addEventListener('alpine:init', () => {
+    Alpine.data('orderData', () => ({
+        orders: [],
+        filteredOrders: [],
+        searchQuery: '',
+        sortField: null,
+        sortDirection: 'asc',
+        selectedStatus: 'all',
+        
+        init() {
+            // Initialize orders from the server-rendered data
+            this.orders = Array.from(document.querySelectorAll('tbody tr')).map(row => ({
+                id: row.querySelector('td:first-child').textContent.trim().replace('#', ''),
+                customer: row.querySelector('td:nth-child(3)')?.textContent.trim() || '',
+                totalPrice: parseFloat(row.querySelector('td:nth-child(5)').textContent.trim().replace('Rp ', '').replace(/\./g, '')),
+                status: row.querySelector('td:nth-child(7) span').textContent.trim(),
+                statusId: row.getAttribute('data-status-id')
+            }));
+            
+            this.filteredOrders = [...this.orders];
+            this.initializeSearch();
+            this.initializeSorting();
+        },
+        
+        initializeSearch() {
+            const searchInput = document.querySelector('input[type="text"]');
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.filterOrders();
+            });
+        },
+        
+        initializeSorting() {
+            const headers = document.querySelectorAll('th.group');
+            headers.forEach(header => {
+                header.addEventListener('click', () => {
+                    const field = header.textContent.trim().toLowerCase().replace(' ', '_');
+                    this.sort(field);
+                });
+            });
+        },
+        
+        filterOrders() {
+            this.filteredOrders = this.orders.filter(order => {
+                const matchesSearch = 
+                    order.id.toLowerCase().includes(this.searchQuery) ||
+                    order.customer.toLowerCase().includes(this.searchQuery) ||
+                    order.status.toLowerCase().includes(this.searchQuery);
+                    
+                const matchesStatus = this.selectedStatus === 'all' || order.statusId === this.selectedStatus;
+                
+                return matchesSearch && matchesStatus;
+            });
+            
+            if (this.sortField) {
+                this.sort(this.sortField, this.sortDirection, false);
+            }
+            
+            this.updateTable();
+        },
+        
+        sort(field, direction = null, toggle = true) {
+            if (toggle && field === this.sortField) {
+                this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                this.sortField = field;
+                this.sortDirection = direction || 'asc';
+            }
+            
+            this.filteredOrders.sort((a, b) => {
+                let comparison = 0;
+                
+                switch (field) {
+                    case 'order_id':
+                        comparison = a.id.localeCompare(b.id, undefined, { numeric: true });
+                        break;
+                    case 'customer':
+                        comparison = a.customer.localeCompare(b.customer);
+                        break;
+                    case 'total_price':
+                        comparison = a.totalPrice - b.totalPrice;
+                        break;
+                    default:
+                        return 0;
+                }
+                
+                return this.sortDirection === 'asc' ? comparison : -comparison;
+            });
+            
+            this.updateTable();
+            this.updateSortIndicators(field);
+        },
+        
+        updateTable() {
+            const tbody = document.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            rows.forEach(row => {
+                const orderId = row.querySelector('td:first-child').textContent.trim().replace('#', '');
+                const order = this.filteredOrders.find(o => o.id === orderId);
+                row.style.display = order ? '' : 'none';
+            });
+        },
+        
+        updateSortIndicators(field) {
+            const headers = document.querySelectorAll('th.group');
+            headers.forEach(header => {
+                const icon = header.querySelector('i.fas');
+                const headerField = header.textContent.trim().toLowerCase().replace(' ', '_');
+                
+                if (headerField === field) {
+                    icon.className = `fas fa-sort-${this.sortDirection === 'asc' ? 'up' : 'down'}`;
+                    icon.classList.remove('text-gray-400');
+                    icon.classList.add('text-blue-500');
+                } else {
+                    icon.className = 'fas fa-sort text-gray-400';
+                }
+            });
+        }
+    }));
+});
+
+// Handle file upload preview
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+        Toast.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Hanya file gambar yang diperbolehkan (JPG, PNG, GIF)'
+        });
+        event.target.value = '';
+        return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+        Toast.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Ukuran file maksimal 2MB'
+        });
+        event.target.value = '';
+        return;
+    }
+    
+    // Preview image
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const preview = document.querySelector('#imagePreview');
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+// Handle drag and drop
+function handleDragOver(event) {
+    event.preventDefault();
+    event.currentTarget.classList.add('border-blue-500', 'bg-blue-50');
+}
+
+function handleDragLeave(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+}
+
+function handleDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('border-blue-500', 'bg-blue-50');
+    
+    const file = event.dataTransfer.files[0];
+    if (file) {
+        const input = document.querySelector('#proofFile');
+        input.files = event.dataTransfer.files;
+        handleFileSelect({ target: input });
+    }
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    tooltipTriggerList.forEach(function(tooltipTriggerEl) {
+        new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+// Export functionality
+window.exportToExcel = function() {
+    const table = document.querySelector('table');
+    const wb = XLSX.utils.table_to_book(table, { sheet: "Orders" });
+    XLSX.writeFile(wb, `orders_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+// Print functionality
+window.printOrders = function() {
+    window.print();
+}

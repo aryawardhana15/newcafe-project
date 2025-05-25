@@ -2,120 +2,145 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Order;
+use App\Models\{Review, Order, Product};
 use Illuminate\Http\Request;
-use App\Models\{User, Product, Review};
+use Illuminate\Support\Facades\Storage;
 
 class ReviewController extends Controller
 {
-    public function productReview(User $user, Product $product)
+    public function index()
     {
-        $title = "Product Review";
-        $reviews = $product->review;
+        $title = "Review Produk";
+        $reviews = Review::with(['user', 'product'])
+            ->where('user_id', auth()->id())
+            ->latest()
+            ->get();
+            
+        return view('review.index', compact('title', 'reviews'));
+    }
 
-        $user = auth()->user();
-
-        if (count($reviews) == 0) {
-            $rate = 0;
-        } else {
-            $rate = $reviews->sum("rating") / count($reviews);
+    public function create(Order $order)
+    {
+        // Check if order is completed and belongs to user
+        if ($order->status_id != 4 || $order->user_id != auth()->id()) {
+            return redirect()->back()
+                ->with('error', 'Anda hanya dapat memberikan review untuk pesanan yang sudah selesai.');
         }
 
-        $isPurchased = $this->isPurchased($user, $product);
-        $isReviewed = $this->isReviewed($user, $product);
-
-        $starCounter = [];
-        $sum = 0;
-        for ($i = 1; $i <= 5; $i++) {
-            $total = count(Review::where(["rating" => $i, "product_id" => $product->id])->get());
-            array_push($starCounter,  $total);
-            $sum += $total;
+        // Check if review already exists
+        if (Review::where('order_id', $order->id)->exists()) {
+            return redirect()->back()
+                ->with('error', 'Anda sudah memberikan review untuk pesanan ini.');
         }
 
-        return view("/review/product_review", compact("title", "reviews", "product", "rate", "isPurchased", "isReviewed", "starCounter", "sum"));
+        $title = "Buat Review";
+        return view('review.create', compact('title', 'order'));
     }
 
-
-    public function addReview(Request $request)
+    public function store(Request $request, Order $order)
     {
-        $validatedData = $request->validate([
-            "rating" => "required",
-            "review" => "required"
-        ]);
+        try {
+            // Validate request
+            $validatedData = $request->validate([
+                'rating' => 'required|integer|min:1|max:5',
+                'comment' => 'required|string|max:1000',
+                'image' => 'nullable|image|max:2048'
+            ]);
 
-        $validatedData["user_id"] = auth()->user()->id;
-        $validatedData["product_id"] = $request->product_id;
-        $validatedData["is_edit"] = 0;
+            // Handle image upload
+            if ($request->file('image')) {
+                $validatedData['image'] = $request->file('image')->store('reviews');
+            }
 
-        Review::create($validatedData);
+            // Add additional data
+            $validatedData['user_id'] = auth()->id();
+            $validatedData['product_id'] = $order->product_id;
+            $validatedData['order_id'] = $order->id;
 
-        $message = "Your review has been created!";
+            // Create review
+            Review::create($validatedData);
 
-        myFlasherBuilder(message: $message, success: true);
-        return back();
-    }
+            return redirect()->route('review.index')
+                ->with('success', 'Review berhasil ditambahkan!');
 
-
-    public function getDataReview(Review $review)
-    {
-        return $review;
-    }
-
-
-    public function editReview(Request $request, Review $review)
-    {
-        $review->fill([
-            'rating' => $request->rating,
-            'review' => $request->review_edit,
-            'is_edit' => 1,
-        ]);
-
-        if ($review->isDirty()) {
-            $review->save();
-
-            $message = "Your review has been updated!";
-
-            myFlasherBuilder(message: $message, success: true);
-            return back();
-        } else {
-            $message = "Action failed, no changes detected!";
-
-            myFlasherBuilder(message: $message, failed: true);
-            return back();
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Gagal menambahkan review: ' . $e->getMessage());
         }
     }
 
-
-    public function deleteReview(Review $review)
+    public function edit(Review $review)
     {
-        $review->delete();
-
-        $message = "Your review has been deleted!";
-
-        myFlasherBuilder(message: $message, success: true);
-        return back();
-    }
-
-    private function isPurchased($user, $product)
-    {
-        $orders = Order::where(["user_id" => $user->id, "product_id" => $product->id, "is_done" => 1])->get();
-
-        if (count($orders) > 0) {
-            return 1;
+        // Check if review belongs to user
+        if ($review->user_id != auth()->id()) {
+            return redirect()->back()
+                ->with('error', 'Anda tidak memiliki akses untuk mengedit review ini.');
         }
 
-        return 0;
+        $title = "Edit Review";
+        return view('review.edit', compact('title', 'review'));
     }
 
-
-    private function isReviewed($user, $product)
+    public function update(Request $request, Review $review)
     {
-        $review = Review::where(["user_id" => $user->id, "product_id" => $product->id])->get();
+        try {
+            // Check if review belongs to user
+            if ($review->user_id != auth()->id()) {
+                throw new \Exception('Anda tidak memiliki akses untuk mengedit review ini.');
+            }
 
-        if (count($review) > 0) {
-            return 1;
+            // Validate request
+            $validatedData = $request->validate([
+                'rating' => 'required|integer|min:1|max:5',
+                'comment' => 'required|string|max:1000',
+                'image' => 'nullable|image|max:2048'
+            ]);
+
+            // Handle image upload
+            if ($request->file('image')) {
+                // Delete old image
+                if ($review->image) {
+                    Storage::delete($review->image);
+                }
+                $validatedData['image'] = $request->file('image')->store('reviews');
+            }
+
+            // Update review
+            $review->update($validatedData);
+
+            return redirect()->route('review.index')
+                ->with('success', 'Review berhasil diperbarui!');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Gagal memperbarui review: ' . $e->getMessage());
         }
+    }
 
-        return 0;
+    public function destroy(Review $review)
+    {
+        try {
+            // Check if review belongs to user
+            if ($review->user_id != auth()->id()) {
+                throw new \Exception('Anda tidak memiliki akses untuk menghapus review ini.');
+            }
+
+            // Delete image if exists
+            if ($review->image) {
+                Storage::delete($review->image);
+            }
+
+            // Delete review
+            $review->delete();
+
+            return redirect()->route('review.index')
+                ->with('success', 'Review berhasil dihapus!');
+
+        } catch (\Exception $e) {
+            return redirect()->back()
+                ->with('error', 'Gagal menghapus review: ' . $e->getMessage());
+        }
     }
 }

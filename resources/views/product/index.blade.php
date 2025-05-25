@@ -56,67 +56,59 @@
         <div class="mb-5"></div>
         @endcan
 
-        <div class="row justify-content-center">
-            @foreach($product as $row)
-            <!-- Product card -->
-            <div class="col-xs-12 col-sm-6 col-md-4">
-                <div class="image-flip" ontouchstart="this.classList.toggle('hover');">
-                    <div class="mainflip">
-                        <div class="frontside">
-                            <div class="card">
-                                <div class="card-body text-center">
-                                    <p><img class=" img-fluid" src="{{ asset('storage/' . $row->image) }}"
-                                          alt="Product Name"></p>
-                                    <h4 class="card-title">{{ $row->product_name }}</h4>
-                                    <p class="card-text">{{ $row->orientation }}</p>
-                                    <div class="btn btn-primary btn-sm"><i class="fa fa-plus"></i></div>
-                                </div>
-                            </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            @foreach($products as $product)
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+                <div class="relative">
+                    <img src="{{ asset('storage/' . $product->image) }}" 
+                         alt="{{ $product->product_name }}" 
+                         class="w-full h-48 object-cover">
+                    @if($product->discount > 0)
+                    <div class="absolute top-2 right-2 bg-red-500 text-white px-2 py-1 rounded-full text-sm font-semibold">
+                        -{{ $product->discount }}%
+                    </div>
+                    @endif
+                </div>
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-2">{{ $product->product_name }}</h3>
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <p class="text-lg font-bold text-blue-600">
+                                Rp {{ number_format($product->price * (1 - $product->discount/100)) }}
+                            </p>
+                            @if($product->discount > 0)
+                            <p class="text-sm text-gray-500 line-through">
+                                Rp {{ number_format($product->price) }}
+                            </p>
+                            @endif
                         </div>
-                        <div class="backside">
-                            <div class="card">
-                                <div class="card-body text-center mt-4">
-                                    <h4 class="card-title">{{ $row->product_name }}</h4>
-                                    <p class="card-text">{{ Str::limit($row->description ?? 'No description available', 100) }}</p>
-
-                                    <!-- detail -->
-                                    <button data-id="{{ $row->id }}"
-                                      class="btn btn-primary btn-sm detail">Detail</button>
-
-                                    <!-- ulasan -->
-                                    <a href="/review/product/{{ $row->id }}"><button
-                                          class="btn btn-primary btn-sm ubah">Review</button></a>
-
-                                    <!-- [admin] actions -->
-                                    @can('edit_product',App\Models\Product::class)
-                                    <a href="/product/edit_product/{{ $row->id }}"><button
-                                          class="btn btn-primary btn-sm ubah">Edit</button></a>
-                                    @endcan
-
-                                 
-                                    @can('delete_product', $row)
-                                        <form action="{{ route('product.delete', $row) }}" method="POST" class="d-inline">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="button"
-                                                    class="btn btn-danger btn-sm"
-                                                    onclick="confirmDelete(this)">
-                                                Delete
-                                            </button>
-                                        </form>
-                                    @endcan
-
-                                    @can('create_order',App\Models\Order::class)
-                                    <a href="/order/make_order/{{ $row->id }}"><button
-                                          class="btn btn-success btn-sm ubah">Buy</button></a>
-                                    @endcan
-                                </div>
-                            </div>
+                        <div class="text-sm {{ $product->stock > 10 ? 'text-green-600' : 'text-orange-600' }}">
+                            Stok: {{ $product->stock }}
                         </div>
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        @if($product->stock > 0)
+                        <a href="/order/make_order/{{ $product->id }}" 
+                           class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <i class="fas fa-shopping-cart mr-2"></i>
+                            Beli
+                        </a>
+                        @else
+                        <button disabled 
+                                class="flex-1 inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-400 cursor-not-allowed">
+                            <i class="fas fa-ban mr-2"></i>
+                            Stok Habis
+                        </button>
+                        @endif
+                        
+                        <button onclick="viewProductDetail({{ $product->id }})"
+                                class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <i class="fas fa-eye"></i>
+                        </button>
                     </div>
                 </div>
             </div>
-            <!-- ./product card -->
             @endforeach
         </div>
     </div>

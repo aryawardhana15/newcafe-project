@@ -20,7 +20,6 @@ class UserFactory extends Factory
     {
         $str_gender = "MF";
         return [
-            'role_id' => 2,
             'fullname' => fake()->name(),
             'username' => fake()->firstName(),
             'email' => fake()->safeEmail(),

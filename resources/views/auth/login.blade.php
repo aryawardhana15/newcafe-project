@@ -27,10 +27,16 @@
                     <p class="text-gray-600">Welcome back! Please login to your account.</p>
                 </div>
 
-                <!-- Session Message -->
-                @if(session()->has('message'))
+                <!-- Session Messages -->
+                @if(session()->has('success'))
                 <div class="mt-4 p-4 bg-green-100 border-l-4 border-green-500 text-green-700 rounded-lg">
-                    {!! session("message") !!}
+                    {{ session('success') }}
+                </div>
+                @endif
+
+                @if(session()->has('loginError'))
+                <div class="mt-4 p-4 bg-red-100 border-l-4 border-red-500 text-red-700 rounded-lg">
+                    {{ session('loginError') }}
                 </div>
                 @endif
 

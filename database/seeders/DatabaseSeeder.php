@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
         // Seed tables without dependencies first
         $this->call([
             RoleSeeder::class,
+            AdminSeeder::class,
             CategorySeeder::class,
             StatusSeeder::class,
             PaymentSeeder::class,
@@ -42,10 +43,5 @@ class DatabaseSeeder extends Seeder
         $this->call([
             ProductSeeder::class,
         ]);
-
-        // Remove duplicate seeding
-        DB::table('statuses')->delete();
-        DB::table('payments')->delete();
-        DB::table('banks')->delete();
     }
 }

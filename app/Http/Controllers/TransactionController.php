@@ -2,93 +2,141 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Category;
 use App\Models\Transaction;
+use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class TransactionController extends Controller
 {
     public function index()
     {
-        $title = "Transaction List";
-        $transactions = Transaction::with("category")->get();
+        $transactions = Transaction::with(['category'])
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        return view("/transaction/index", compact("title", "transactions"));
+        $totalIncome = Transaction::sum('income');
+        $totalOutcome = Transaction::sum('outcome');
+        $totalTransactions = Transaction::count();
+        $categories = Category::where('type', 'transaction')->get();
+
+        return view('admin.transactions.index', compact(
+            'transactions',
+            'totalIncome',
+            'totalOutcome',
+            'totalTransactions',
+            'categories'
+        ));
     }
 
-
-    public function addOutcomeGet()
+    public function store(Request $request)
     {
-        $title = "Add Outcome";
-        $categories = Category::where("id", "!=", 1)->get();
+        try {
+            DB::beginTransaction();
 
-        return view("/transaction/add_outcome", compact("title", "categories"));
+            $request->validate([
+                'category_id' => 'required|exists:categories,id',
+                'description' => 'required|string|max:255',
+                'income' => 'nullable|numeric|min:0',
+                'outcome' => 'nullable|numeric|min:0'
+            ], [
+                'category_id.required' => 'Kategori harus dipilih',
+                'category_id.exists' => 'Kategori tidak valid',
+                'description.required' => 'Deskripsi harus diisi',
+                'description.max' => 'Deskripsi maksimal 255 karakter',
+                'income.numeric' => 'Pemasukan harus berupa angka',
+                'income.min' => 'Pemasukan minimal 0',
+                'outcome.numeric' => 'Pengeluaran harus berupa angka',
+                'outcome.min' => 'Pengeluaran minimal 0'
+            ]);
+
+            // Validasi income dan outcome
+            if (!$request->income && !$request->outcome) {
+                throw new \Exception('Pemasukan atau pengeluaran harus diisi');
+            }
+
+            if ($request->income && $request->outcome) {
+                throw new \Exception('Tidak bisa mengisi pemasukan dan pengeluaran sekaligus');
+            }
+
+            Transaction::create([
+                'category_id' => $request->category_id,
+                'description' => $request->description,
+                'income' => $request->income,
+                'outcome' => $request->outcome
+            ]);
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Transaksi berhasil ditambahkan');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()->with('error', $e->getMessage());
+        }
     }
 
-
-    
-    public function addOutcomePost(Request $request)
+    public function edit(Transaction $transaction)
     {
-        $validatedData = $request->validate(
-            [
-                "category_id" => "required|numeric|gt:0",
-                "outcome" => "required|numeric|gt:0",
-                "description" => "required"
-            ],
-            [
-                "category_id.gt" => "Please select the category"
-            ]
-        );
-
-        Transaction::create($validatedData);
-
-        $message = "Transaction created successfully!";
-
-        myFlasherBuilder(message: $message, success: true);
-
-        return redirect("/transaction");
+        $categories = Category::where('type', 'transaction')->get();
+        return view('admin.transactions.edit', compact('transaction', 'categories'));
     }
 
-
-    public function editOutcomeGet(Transaction $transaction)
+    public function update(Request $request, Transaction $transaction)
     {
-        $title = "Edit Outcome";
-        $transaction->load("category");
-        $categories = Category::where("id", "!=", 1)->get();
+        try {
+            DB::beginTransaction();
 
-        return view("/transaction/edit_outcome", compact("title", "transaction", "categories"));
+            $request->validate([
+                'category_id' => 'required|exists:categories,id',
+                'description' => 'required|string|max:255',
+                'income' => 'nullable|numeric|min:0',
+                'outcome' => 'nullable|numeric|min:0'
+            ]);
+
+            // Validasi income dan outcome
+            if (!$request->income && !$request->outcome) {
+                throw new \Exception('Pemasukan atau pengeluaran harus diisi');
+            }
+
+            if ($request->income && $request->outcome) {
+                throw new \Exception('Tidak bisa mengisi pemasukan dan pengeluaran sekaligus');
+            }
+
+            $transaction->update([
+                'category_id' => $request->category_id,
+                'description' => $request->description,
+                'income' => $request->income,
+                'outcome' => $request->outcome
+            ]);
+
+            DB::commit();
+
+            return redirect()->route('admin.transactions.index')->with('success', 'Transaksi berhasil diupdate');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return redirect()->back()->with('error', $e->getMessage());
+        }
     }
 
-    public function editOutcomePost(Request $request, Transaction $transaction)
+    public function destroy(Transaction $transaction)
     {
-        $validatedData = $request->validate(
-            [
-                "category_id" => "required|numeric|gt:0",
-                "outcome" => "required|numeric|gt:0",
-                "description" => "required"
-            ],
-            [
-                "category_id.gt" => "Please select the category"
-            ]
-        );
+        try {
+            DB::beginTransaction();
 
-        $transaction->fill($validatedData);
+            $transaction->delete();
 
-        if ($transaction->isDirty()) {
-            $transaction->save();
+            DB::commit();
 
-
-            $message = "Transaction updated successfully!";
-
-            myFlasherBuilder(message: $message, success: true);
-
-            return redirect("/transaction");
-        } else {
-            $message = "Action failed, no changes detected!";
-
-            myFlasherBuilder(message: $message, failed: true);
-
-            return back();
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaksi berhasil dihapus'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 }

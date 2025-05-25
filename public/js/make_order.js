@@ -229,96 +229,79 @@ document.addEventListener('DOMContentLoaded', function() {
     const quantity = document.getElementById('quantity');
     const price = document.getElementById('price');
     const address = document.getElementById('address');
+    const shippingAddress = document.getElementById('shipping_address');
     const useCoupon = document.getElementById('use_coupon');
     const bankTransfer = document.getElementById('bank_transfer');
     const cod = document.getElementById('cod');
     const bankSelection = document.getElementById('bank_selection');
     const bankId = document.getElementById('bank_id');
     const orderForm = document.getElementById('orderForm');
+    const subtotalElement = document.getElementById('subtotal');
+    const shippingCostElement = document.getElementById('shipping_cost');
+    const totalElement = document.getElementById('total');
+
+    // Initialize shipping address
+    function updateShippingAddress() {
+        shippingAddress.value = address.value;
+    }
+    
+    address.addEventListener('input', updateShippingAddress);
+    updateShippingAddress(); // Initial update
 
     // Payment method handling
     function toggleBankSelection() {
-        bankSelection.style.display = bankTransfer.checked ? 'block' : 'none';
-        bankId.required = bankTransfer.checked;
+        if (bankTransfer.checked) {
+            bankSelection.style.display = 'block';
+            bankId.required = true;
+        } else {
+            bankSelection.style.display = 'none';
+            bankId.required = false;
+            bankId.value = '';
+        }
     }
 
     bankTransfer.addEventListener('change', toggleBankSelection);
     cod.addEventListener('change', toggleBankSelection);
-    
-    // Initial state
-    toggleBankSelection();
 
-    // Calculate total
-    function calculateTotal() {
+    // Calculate totals
+    function calculateTotals() {
+        const basePrice = parseFloat(price.dataset.trueprice);
         const qty = parseInt(quantity.value) || 0;
-        const basePrice = parseFloat(price.dataset.trueprice) || 0;
-        const shippingCost = qty > 0 ? SHIPPING_COST : 0;
+        const subtotal = basePrice * qty;
         
-        let subtotal = qty * basePrice;
+        let total = subtotal + SHIPPING_COST;
         
-        // Apply coupon discount if checked
         if (useCoupon && useCoupon.checked) {
-            subtotal = subtotal * (1 - COUPON_DISCOUNT);
-            document.getElementById('coupon_used').value = 1;
-        } else {
-            document.getElementById('coupon_used').value = 0;
+            total = total * (1 - COUPON_DISCOUNT);
         }
 
-        const total = subtotal + shippingCost;
-
         // Update display
-        document.getElementById('subtotal').textContent = formatNumber(Math.round(subtotal));
-        document.getElementById('shipping_cost').textContent = formatNumber(shippingCost);
-        document.getElementById('total').textContent = formatNumber(Math.round(total));
+        subtotalElement.textContent = subtotal.toLocaleString('id-ID');
+        shippingCostElement.textContent = SHIPPING_COST.toLocaleString('id-ID');
+        totalElement.textContent = total.toLocaleString('id-ID');
         
-        // Update hidden inputs
-        document.getElementById('total_price').value = Math.round(total);
-        document.getElementById('shipping_address').value = address.value;
+        // Update hidden total price input
+        document.getElementById('total_price').value = total;
+        document.getElementById('coupon_used').value = useCoupon && useCoupon.checked ? 1 : 0;
     }
 
-    // Format number to Indonesian Rupiah format
-    function formatNumber(number) {
-        return new Intl.NumberFormat('id-ID').format(number);
-    }
-
-    // Event listeners
-    quantity.addEventListener('change', calculateTotal);
-    quantity.addEventListener('input', calculateTotal);
-    address.addEventListener('input', calculateTotal);
+    // Event listeners for calculations
+    quantity.addEventListener('change', calculateTotals);
     if (useCoupon) {
-        useCoupon.addEventListener('change', calculateTotal);
+        useCoupon.addEventListener('change', calculateTotals);
     }
 
     // Form validation
     orderForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        // Basic validation
-        if (!bankTransfer.checked && !cod.checked) {
-            alert('Silakan pilih metode pembayaran');
-            return;
-        }
-        
         if (bankTransfer.checked && !bankId.value) {
-            alert('Silakan pilih bank untuk transfer');
-            return;
+            e.preventDefault();
+            alert('Silakan pilih bank untuk transfer!');
+            return false;
         }
-
-        const qty = parseInt(quantity.value) || 0;
-        if (qty <= 0) {
-            alert('Jumlah pesanan harus lebih dari 0');
-            return;
-        }
-
-        if (!address.value.trim()) {
-            alert('Alamat pengiriman tidak boleh kosong');
-            return;
-        }
-
-        // If all validation passes, submit the form
-        this.submit();
+        return true;
     });
 
-    // Initial calculation
-    calculateTotal();
+    // Initial calculations
+    calculateTotals();
+    toggleBankSelection();
 });

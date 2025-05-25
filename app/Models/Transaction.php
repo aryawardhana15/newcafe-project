@@ -10,10 +10,31 @@ class Transaction extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'category_id',
+        'type',
+        'description',
+        'income',
+        'outcome'
+    ];
 
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function isIncome()
+    {
+        return $this->type === 'income';
+    }
+
+    public function isOutcome()
+    {
+        return $this->type === 'outcome';
+    }
+
+    public function getAmount()
+    {
+        return $this->isIncome() ? $this->income : $this->outcome;
     }
 }

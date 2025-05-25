@@ -10,9 +10,28 @@ class Product extends Model
 {
     use HasFactory;
     
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'product_name',
+        'description',
+        'price',
+        'stock',
+        'image',
+        'category_id',
+        'is_available'
+    ];
 
-    public function order()
+    protected $casts = [
+        'is_available' => 'boolean',
+        'price' => 'float',
+        'stock' => 'integer'
+    ];
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
+
+    public function orders()
     {
         return $this->hasMany(Order::class);
     }

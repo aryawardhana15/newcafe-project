@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\{AuthController, HomeController, OrderController, PointController, ReviewController, ProductController, ProfileController, RajaOngkirController, TransactionController};
+use App\Http\Controllers\{AuthController, HomeController, OrderController, PointController, ReviewController, ProductController, ProfileController, RajaOngkirController, TransactionController, PaymentController, MenuCategoryController};
 
 /*
 |--------------------------------------------------------------------------
@@ -47,11 +47,11 @@ Route::middleware(['auth'])->group(function () {
 
     // profile
     Route::controller(ProfileController::class)->group(function () {
-        Route::get("/profile/my_profile", "myProfile");
-        Route::get("/profile/edit_profile", "editProfileGet");
-        Route::post("/profile/edit_profile/{user:id}", "editProfilePost");
-        Route::get("/profile/change_password", "changePasswordGet");
-        Route::post("/profile/change_password", "changePasswordPost");
+        Route::get("/profile/my_profile", "myProfile")->name('profile.show');
+        Route::get("/profile/edit_profile", "editProfileGet")->name('profile.edit');
+        Route::post("/profile/edit_profile/{user:id}", "editProfilePost")->name('profile.update');
+        Route::get("/profile/change_password", "changePasswordGet")->name('profile.password.edit');
+        Route::post("/profile/change_password", "changePasswordPost")->name('profile.password.update');
     });
 
     // Product
@@ -70,27 +70,40 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Order
-    Route::controller(OrderController::class)->group(function () {
-        Route::get("/order/order_data", "orderData");
-        Route::get("/order/order_history", "orderHistory");
-        Route::get("/order/order_data/{status_id}", "orderDataFilter");
-        Route::get("/order/data/{order}", "getOrderData")->can("my_real_order", "order");
-        Route::get("/order/getProof/{order}", "getProofOrder")->can("my_real_order", "order");
+    Route::prefix('order')->group(function () {
+        // View & Create Order
+        Route::get('/make_order/{product}', [OrderController::class, 'makeOrderGet'])->name('order.make');
+        Route::post('/make_order/{product}', [OrderController::class, 'makeOrderPost'])->name('order.store');
+        
+        // Order List & History
+        Route::get('/order_data', [OrderController::class, 'orderData'])->name('order.data');
+        Route::get('/order_history', [OrderController::class, 'orderHistory'])->name('order.history');
+        Route::get('/order_data/{status_id}', [OrderController::class, 'orderDataFilter'])->name('order.filter');
+        
+        // Order Management
+        Route::post('/cancel_order/{order}', [OrderController::class, 'cancelOrder'])->name('order.cancel');
+        Route::post('/reject_order/{order}/{product}', [OrderController::class, 'rejectOrder'])->name('order.reject');
+        Route::post('/approve_order/{order}/{product}', [OrderController::class, 'approveOrder'])->name('order.approve');
+        Route::post('/end_order/{order}/{product}', [OrderController::class, 'endOrder'])->name('order.end');
+        
+        // Payment Proof
+        Route::get('/getProof/{order}', [OrderController::class, 'getProofOrder'])->name('order.proof');
+        Route::post('/upload_proof/{order}', [OrderController::class, 'uploadProof'])->name('order.upload_proof');
+        Route::get('/delete_proof/{order}', [OrderController::class, 'deleteProof'])->name('order.delete_proof');
+        
+        // Edit Order
+        Route::get('/edit_order/{order}', [OrderController::class, 'editOrderGet'])->name('order.edit');
+        Route::post('/edit_order/{order}', [OrderController::class, 'editOrderPost'])->name('order.update');
+    });
 
-
-        // customer only
-        Route::get("/order/make_order/{product:id}", "makeOrderGet")->can("create_order", App\Models\Order::class);
-        Route::post("/order/make_order/{product:id}", "makeOrderPost")->can("create_order", App\Models\Order::class);
-        Route::get("/order/edit_order/{order}", "editOrderGet")->can("edit_order", "order");
-        Route::post("/order/edit_order/{order}", "editOrderPost")->can("edit_order", "order");
-        Route::get("/order/delete_proof/{order}", "deleteProof")->can("delete_proof", "order");
-        Route::post("/order/cancel_order/{order}", "cancelOrder")->can("cancel_order", "order");
-        Route::post("/order/upload_proof/{order}", "uploadProof")->can("upload_proof", "order");
-
-        // admin only
-        Route::post("/order/reject_order/{order}/{product}", "rejectOrder")->can("reject_order", App\Models\Order::class);
-        Route::post("/order/end_order/{order}/{product}", "endOrder")->can("end_order", App\Models\Order::class);
-        Route::post("/order/approve_order/{order}/{product}", "approveOrder")->can("approve_order", App\Models\Order::class);
+    // Reviews
+    Route::prefix('review')->middleware(['auth'])->group(function () {
+        Route::get('/', [ReviewController::class, 'index'])->name('review.index');
+        Route::get('/create/{order}', [ReviewController::class, 'create'])->name('review.create');
+        Route::post('/store/{order}', [ReviewController::class, 'store'])->name('review.store');
+        Route::get('/edit/{review}', [ReviewController::class, 'edit'])->name('review.edit');
+        Route::put('/update/{review}', [ReviewController::class, 'update'])->name('review.update');
+        Route::delete('/destroy/{review}', [ReviewController::class, 'destroy'])->name('review.destroy');
     });
 
     // Ongkir
@@ -125,6 +138,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post("/point/convert_point", "convert_point")->can("convert_point", App\Models\User::class);
     });
 
+    // Payment Routes
+    Route::get('/payment/process/{order}', [PaymentController::class, 'process'])->name('payment.process');
+    Route::post('/payment/callback', [PaymentController::class, 'callback'])->name('payment.callback');
+    Route::get('/payment/finish', [PaymentController::class, 'finish'])->name('payment.finish');
+    Route::get('/payment/pending', [PaymentController::class, 'pending'])->name('payment.pending');
+    Route::get('/payment/error', [PaymentController::class, 'error'])->name('payment.error');
 
     // chart
     Route::middleware(['can:is_admin'])->group(function () {
@@ -178,6 +197,40 @@ Route::middleware(['auth'])->group(function () {
         });
     });
 
+    // Menu Categories (Admin Only)
+    Route::middleware(['auth', 'can:manage_categories'])->group(function () {
+        Route::resource('menu-categories', MenuCategoryController::class);
+    });
+
     // Logout
-    Route::post('/auth/logout', [AuthController::class, "logoutPost"]);
+    Route::post('/auth/logout', [AuthController::class, "logoutPost"])->name('logout');
+});
+
+// Admin Routes
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    // Dashboard
+    Route::get('/', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
+
+    // Products
+    Route::resource('products', App\Http\Controllers\Admin\ProductController::class);
+    Route::post('products/{product}/status', [App\Http\Controllers\Admin\ProductController::class, 'updateStatus'])->name('products.status');
+
+    // Orders
+    Route::get('orders', [App\Http\Controllers\Admin\OrderController::class, 'index'])->name('orders.index');
+    Route::get('orders/history', [App\Http\Controllers\Admin\OrderController::class, 'history'])->name('orders.history');
+    Route::get('orders/{order}', [App\Http\Controllers\Admin\OrderController::class, 'show'])->name('orders.show');
+    Route::post('orders/{order}/approve', [App\Http\Controllers\Admin\OrderController::class, 'approve'])->name('orders.approve');
+    Route::post('orders/{order}/reject', [App\Http\Controllers\Admin\OrderController::class, 'reject'])->name('orders.reject');
+    Route::post('orders/{order}/complete', [App\Http\Controllers\Admin\OrderController::class, 'complete'])->name('orders.complete');
+
+    // Transactions
+    Route::resource('transactions', App\Http\Controllers\Admin\TransactionController::class);
+
+    // Categories
+    Route::resource('categories', App\Http\Controllers\Admin\CategoryController::class);
+
+    // Users
+    Route::resource('users', App\Http\Controllers\Admin\UserController::class);
+    Route::post('users/{user}/update-point', [App\Http\Controllers\Admin\UserController::class, 'updatePoint'])->name('users.update-point');
+    Route::post('users/{user}/update-coupon', [App\Http\Controllers\Admin\UserController::class, 'updateCoupon'])->name('users.update-coupon');
 });

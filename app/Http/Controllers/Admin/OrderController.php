@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Status;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Transaction;
 
 class OrderController extends Controller
 {
@@ -145,13 +146,11 @@ class OrderController extends Controller
             $order->user->increment('point', $pointEarned);
 
             // Catat transaksi
-            DB::table('transactions')->insert([
+            Transaction::create([
                 'category_id' => 1, // Sales
-                'type' => 'income',
                 'description' => "Penjualan {$order->quantity} {$order->product->product_name}",
-                'amount' => $order->total_price,
-                'created_at' => now(),
-                'updated_at' => now()
+                'income' => $order->total_price,
+                'outcome' => 0
             ]);
 
             DB::commit();

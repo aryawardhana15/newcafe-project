@@ -403,7 +403,7 @@ class OrderController extends Controller
                 'category_id' => 1, // Sales
                 'description' => "Penjualan {$order->quantity} {$order->product->product_name}",
                 'income' => $order->total_price,
-                'outcome' => null
+                'outcome' => 0
             ]);
 
             // Kirim notifikasi ke user

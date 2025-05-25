@@ -26,7 +26,7 @@ class DashboardController extends Controller
         $pendingOrders = Order::where('status_id', 1)->count();
 
         // Recent Orders
-        $recentOrders = Order::with(['status'])
+        $recentOrders = Order::with(['status', 'product'])
             ->latest()
             ->take(5)
             ->get();
@@ -145,13 +145,14 @@ class DashboardController extends Controller
 
     private function getCategoryChartData($start = null, $end = null)
     {
-        $query = Order::with('product.category')
+        $query = Order::with(['product.category'])
             ->select(
                 'products.category_id',
                 DB::raw('COUNT(*) as total_orders'),
                 DB::raw('SUM(orders.total_price) as total_revenue')
             )
             ->join('products', 'orders.product_id', '=', 'products.id')
+            ->where('orders.status_id', 4) // Hanya pesanan yang selesai
             ->groupBy('products.category_id');
 
         if ($start && $end) {
@@ -162,10 +163,9 @@ class DashboardController extends Controller
 
         return [
             'labels' => $categoryData->map(function($item) {
-                return $item->product->category->category_name;
-            }),
-            'orders' => $categoryData->pluck('total_orders'),
-            'revenue' => $categoryData->pluck('total_revenue')
+                return $item->product->category->category_name ?? 'Tidak Ada Kategori';
+            })->toArray(),
+            'data' => $categoryData->pluck('total_revenue')->toArray()
         ];
     }
 } 

@@ -42,6 +42,36 @@ class CategorySeeder extends Seeder
                 'category_name' => 'Dessert',
                 'description' => 'Menu penutup dan makanan manis',
                 'image' => 'desserts.jpg'
+            ],
+            [
+                'id' => 5,
+                'category_name' => 'Penjualan',
+                'description' => 'Pendapatan dari penjualan produk',
+                'image' => 'sales.jpg'
+            ],
+            [
+                'id' => 6,
+                'category_name' => 'Pembelian Bahan',
+                'description' => 'Pengeluaran untuk pembelian bahan baku',
+                'image' => 'supplies.jpg'
+            ],
+            [
+                'id' => 7,
+                'category_name' => 'Operasional',
+                'description' => 'Pengeluaran untuk operasional cafe',
+                'image' => 'operational.jpg'
+            ],
+            [
+                'id' => 8,
+                'category_name' => 'Gaji Karyawan',
+                'description' => 'Pengeluaran untuk gaji karyawan',
+                'image' => 'salary.jpg'
+            ],
+            [
+                'id' => 9,
+                'category_name' => 'Lain-lain',
+                'description' => 'Transaksi lainnya',
+                'image' => 'others.jpg'
             ]
         ];
 

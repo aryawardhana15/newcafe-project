@@ -147,7 +147,7 @@ class OrderController extends Controller
 
             // Catat transaksi
             Transaction::create([
-                'category_id' => 1, // Sales
+                'category_id' => 1, // Penjualan
                 'description' => "Penjualan {$order->quantity} {$order->product->product_name}",
                 'income' => $order->total_price,
                 'outcome' => 0

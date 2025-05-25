@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="container-fluid px-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">Dashboard</h1>
         <div class="dropdown">
             <button class="btn btn-primary dropdown-toggle" type="button" id="filterDropdown" data-bs-toggle="dropdown">
@@ -80,19 +80,19 @@
         </div>
 
         <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card border-left-info shadow h-100 py-2">
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                Pesanan Pending
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Total Pesanan
                             </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="pendingOrders">
-                                {{ $pendingOrders }}
+                            <div class="h5 mb-0 font-weight-bold text-gray-800" id="totalOrders">
+                                {{ $totalOrders }}
                             </div>
                         </div>
                         <div class="col-auto">
-                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                            <i class="fas fa-shopping-bag fa-2x text-gray-300"></i>
                         </div>
                     </div>
                 </div>
@@ -106,11 +106,11 @@
         <div class="col-xl-8 col-lg-7">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Grafik Keuangan</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Grafik Pendapatan</h6>
                 </div>
                 <div class="card-body">
                     <div class="chart-area">
-                        <canvas id="financeChart"></canvas>
+                        <canvas id="incomeChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -120,11 +120,11 @@
         <div class="col-xl-4 col-lg-5">
             <div class="card shadow mb-4">
                 <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-primary">Kategori Produk</h6>
+                    <h6 class="m-0 font-weight-bold text-primary">Distribusi Kategori</h6>
                 </div>
                 <div class="card-body">
                     <div class="chart-pie">
-                        <canvas id="productCategoryChart"></canvas>
+                        <canvas id="categoryChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -144,23 +144,23 @@
                         <table class="table table-bordered" width="100%" cellspacing="0">
                             <thead>
                                 <tr>
-                                    <th>Order ID</th>
-                                    <th>Pelanggan</th>
-                                    <th>Total</th>
+                                    <th>ID</th>
+                                    <th>Produk</th>
                                     <th>Status</th>
+                                    <th>Total</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @foreach($recentOrders as $order)
                                 <tr>
                                     <td>#{{ $order->id }}</td>
-                                    <td>{{ $order->customer_name }}</td>
-                                    <td>Rp {{ number_format($order->total_price, 0, ',', '.') }}</td>
+                                    <td>{{ $order->product->product_name }}</td>
                                     <td>
-                                        <span class="badge bg-{{ $order->status->color }}">
-                                            {{ $order->status->name }}
+                                        <span class="badge bg-{{ $order->status->id == 1 ? 'success' : 'warning' }}">
+                                            {{ $order->status->status_name }}
                                         </span>
                                     </td>
+                                    <td>Rp {{ number_format($order->total_price, 0, ',', '.') }}</td>
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -190,22 +190,30 @@
                             <tbody>
                                 @foreach($recentTransactions as $transaction)
                                 <tr>
-                                    <td>{{ $transaction->category->category_name }}</td>
+                                    <td>
+                                        @if($transaction->category)
+                                            <span class="badge bg-{{ $transaction->income > 0 ? 'success' : 'danger' }}">
+                                                {{ $transaction->category->category_name }}
+                                            </span>
+                                        @else
+                                            <span class="badge bg-secondary">Tidak Ada Kategori</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $transaction->description }}</td>
                                     <td>
-                                        @if($transaction->income)
-                                        <span class="text-success">
-                                            + Rp {{ number_format($transaction->income, 0, ',', '.') }}
-                                        </span>
+                                        @if($transaction->income > 0)
+                                            <span class="text-success">
+                                                + Rp {{ number_format($transaction->income, 0, ',', '.') }}
+                                            </span>
                                         @else
-                                        <span class="text-danger">
-                                            - Rp {{ number_format($transaction->outcome, 0, ',', '.') }}
-                                        </span>
+                                            <span class="text-danger">
+                                                - Rp {{ number_format($transaction->outcome, 0, ',', '.') }}
+                                            </span>
                                         @endif
                                     </td>
                                     <td>
-                                        <span class="badge bg-{{ $transaction->income ? 'success' : 'danger' }}">
-                                            {{ $transaction->income ? 'Pemasukan' : 'Pengeluaran' }}
+                                        <span class="badge bg-{{ $transaction->income > 0 ? 'success' : 'danger' }}">
+                                            {{ $transaction->income > 0 ? 'Pemasukan' : 'Pengeluaran' }}
                                         </span>
                                     </td>
                                 </tr>
@@ -235,32 +243,23 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Finance Chart
-    var ctx = document.getElementById('financeChart').getContext('2d');
-    var financeChart = new Chart(ctx, {
+    // Income Chart
+    const incomeCtx = document.getElementById('incomeChart').getContext('2d');
+    const incomeChart = new Chart(incomeCtx, {
         type: 'line',
         data: {
             labels: {!! json_encode($incomeChart['labels']) !!},
             datasets: [{
-                label: 'Pendapatan',
+                label: 'Pemasukan',
                 data: {!! json_encode($incomeChart['income']) !!},
+                borderColor: '#4e73df',
                 backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                borderColor: 'rgba(78, 115, 223, 1)',
-                pointRadius: 3,
-                pointBackgroundColor: 'rgba(78, 115, 223, 1)',
-                pointBorderColor: 'rgba(78, 115, 223, 1)',
-                pointHoverRadius: 5,
                 fill: true
-            },
-            {
+            }, {
                 label: 'Pengeluaran',
                 data: {!! json_encode($incomeChart['outcome']) !!},
+                borderColor: '#e74a3b',
                 backgroundColor: 'rgba(231, 74, 59, 0.05)',
-                borderColor: 'rgba(231, 74, 59, 1)',
-                pointRadius: 3,
-                pointBackgroundColor: 'rgba(231, 74, 59, 1)',
-                pointBorderColor: 'rgba(231, 74, 59, 1)',
-                pointHoverRadius: 5,
                 fill: true
             }]
         },
@@ -268,8 +267,7 @@ document.addEventListener('DOMContentLoaded', function() {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
-                    display: true,
-                    position: 'top'
+                    display: true
                 }
             },
             scales: {
@@ -277,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     beginAtZero: true,
                     ticks: {
                         callback: function(value) {
-                            return 'Rp ' + value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                            return 'Rp ' + value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                         }
                     }
                 }
@@ -285,24 +283,42 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Product Category Chart
-    var ctx2 = document.getElementById('productCategoryChart').getContext('2d');
-    var productCategoryChart = new Chart(ctx2, {
+    // Category Chart
+    const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+    const categoryChart = new Chart(categoryCtx, {
         type: 'doughnut',
         data: {
             labels: {!! json_encode($categoryChart['labels']) !!},
             datasets: [{
-                data: {!! json_encode($categoryChart['revenue']) !!},
-                backgroundColor: ['#4e73df', '#1cc88a', '#36b9cc', '#f6c23e'],
-                hoverBackgroundColor: ['#2e59d9', '#17a673', '#2c9faf', '#dda20a'],
-                hoverBorderColor: 'rgba(234, 236, 244, 1)'
+                data: {!! json_encode($categoryChart['data']) !!},
+                backgroundColor: [
+                    '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', 
+                    '#e74a3b', '#858796', '#5a5c69', '#2c9faf',
+                    '#f8f9fc'
+                ],
+                hoverBackgroundColor: [
+                    '#2e59d9', '#17a673', '#2c9faf', '#f4b619',
+                    '#be2617', '#60616f', '#373840', '#1a7081',
+                    '#e5e9f2'
+                ],
+                hoverBorderColor: "rgba(234, 236, 244, 1)",
             }]
         },
         options: {
             maintainAspectRatio: false,
             plugins: {
                 legend: {
+                    display: true,
                     position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = context.raw;
+                            const formattedValue = value.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                            return `${context.label}: Rp ${formattedValue}`;
+                        }
+                    }
                 }
             },
             cutout: '70%'
@@ -310,31 +326,33 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Filter functionality
-    document.querySelectorAll('.filter-btn').forEach(button => {
-        button.addEventListener('click', function(e) {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
             e.preventDefault();
-            const filter = this.dataset.filter;
+            const period = this.dataset.filter;
             
-            fetch(`/admin/dashboard/filter/${filter}`)
+            fetch(`/admin/dashboard/filter/${period}`)
                 .then(response => response.json())
                 .then(data => {
-                    // Update cards
+                    // Update statistics
                     document.getElementById('totalIncome').textContent = 'Rp ' + data.totalIncome;
                     document.getElementById('totalOutcome').textContent = 'Rp ' + data.totalOutcome;
                     document.getElementById('netProfit').textContent = 'Rp ' + data.netProfit;
                     document.getElementById('totalOrders').textContent = data.totalOrders;
-                    document.getElementById('totalProducts').textContent = data.totalProducts;
-                    document.getElementById('pendingOrders').textContent = data.pendingOrders;
-
+                    
                     // Update charts
-                    financeChart.data.labels = data.incomeChart.labels;
-                    financeChart.data.datasets[0].data = data.incomeChart.income;
-                    financeChart.data.datasets[1].data = data.incomeChart.outcome;
-                    financeChart.update();
+                    incomeChart.data.labels = data.incomeChart.labels;
+                    incomeChart.data.datasets[0].data = data.incomeChart.income;
+                    incomeChart.data.datasets[1].data = data.incomeChart.outcome;
+                    incomeChart.update();
 
-                    productCategoryChart.data.labels = data.categoryChart.labels;
-                    productCategoryChart.data.datasets[0].data = data.categoryChart.revenue;
-                    productCategoryChart.update();
+                    categoryChart.data.labels = data.categoryChart.labels;
+                    categoryChart.data.datasets[0].data = data.categoryChart.data;
+                    categoryChart.update();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Terjadi kesalahan saat memfilter data');
                 });
         });
     });

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\{Order, Review};
+use App\Models\{Order, Review, User, Category};
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
@@ -17,12 +17,13 @@ class Product extends Model
         'stock',
         'image',
         'category_id',
+        'user_id',
         'is_available'
     ];
 
     protected $casts = [
         'is_available' => 'boolean',
-        'price' => 'float',
+        'price' => 'decimal:2',
         'stock' => 'integer'
     ];
 
@@ -31,12 +32,17 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function orders()
     {
         return $this->hasMany(Order::class);
     }
 
-    public function review()
+    public function reviews()
     {
         return $this->hasMany(Review::class);
     }

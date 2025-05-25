@@ -7,55 +7,165 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        // Statistik Utama
+        $today = Carbon::today();
+        
+        // Card Statistics
+        $totalIncome = Transaction::sum('income');
+        $totalOutcome = Transaction::sum('outcome');
+        $netProfit = $totalIncome - $totalOutcome;
         $totalOrders = Order::count();
         $totalProducts = Product::count();
-        $totalCustomers = User::where('role_id', 2)->count();
-        
-        // Pendapatan & Pengeluaran
-        $totalIncome = Transaction::where('type', 'income')->sum('income');
-        $totalOutcome = Transaction::where('type', 'outcome')->sum('outcome');
-        $netIncome = $totalIncome - $totalOutcome;
+        $pendingOrders = Order::where('status_id', 1)->count();
 
-        // Pesanan Terbaru
-        $recentOrders = Order::with(['user', 'product', 'status'])
+        // Recent Orders
+        $recentOrders = Order::with(['status'])
             ->latest()
             ->take(5)
             ->get();
 
-        // Grafik Penjualan 7 Hari Terakhir
-        $salesData = Order::where('is_done', 1)
-            ->whereBetween('created_at', [now()->subDays(6), now()])
-            ->selectRaw('DATE(created_at) as date, COUNT(*) as total')
+        // Low Stock Products
+        $lowStockProducts = Product::where('stock', '<', 10)
+            ->orderBy('stock', 'asc')
+            ->take(5)
+            ->get();
+
+        // Recent Transactions
+        $recentTransactions = Transaction::with(['category'])
+            ->latest()
+            ->take(5)
+            ->get();
+
+        // Income Chart Data (Last 7 days)
+        $incomeChart = $this->getIncomeChartData();
+
+        // Category Chart Data
+        $categoryChart = $this->getCategoryChartData();
+
+        return view('admin.dashboard', compact(
+            'totalIncome',
+            'totalOutcome',
+            'netProfit',
+            'totalOrders',
+            'totalProducts',
+            'pendingOrders',
+            'recentOrders',
+            'lowStockProducts',
+            'recentTransactions',
+            'incomeChart',
+            'categoryChart'
+        ));
+    }
+
+    public function filter($period)
+    {
+        $now = Carbon::now();
+        
+        switch ($period) {
+            case 'today':
+                $start = $now->startOfDay();
+                $end = $now->copy()->endOfDay();
+                break;
+            case 'week':
+                $start = $now->startOfWeek();
+                $end = $now->copy()->endOfWeek();
+                break;
+            case 'month':
+                $start = $now->startOfMonth();
+                $end = $now->copy()->endOfMonth();
+                break;
+            case 'year':
+                $start = $now->startOfYear();
+                $end = $now->copy()->endOfYear();
+                break;
+            default:
+                return response()->json(['error' => 'Invalid period'], 400);
+        }
+
+        // Get filtered data
+        $totalIncome = Transaction::whereBetween('created_at', [$start, $end])->sum('income');
+        $totalOutcome = Transaction::whereBetween('created_at', [$start, $end])->sum('outcome');
+        $netProfit = $totalIncome - $totalOutcome;
+        $totalOrders = Order::whereBetween('created_at', [$start, $end])->count();
+        $totalProducts = Product::count();
+        $pendingOrders = Order::where('status_id', 1)
+            ->whereBetween('created_at', [$start, $end])
+            ->count();
+
+        // Get chart data for the period
+        $incomeChart = $this->getIncomeChartData($start, $end);
+        $categoryChart = $this->getCategoryChartData($start, $end);
+
+        return response()->json([
+            'totalIncome' => number_format($totalIncome, 0, ',', '.'),
+            'totalOutcome' => number_format($totalOutcome, 0, ',', '.'),
+            'netProfit' => number_format($netProfit, 0, ',', '.'),
+            'totalOrders' => $totalOrders,
+            'totalProducts' => $totalProducts,
+            'pendingOrders' => $pendingOrders,
+            'incomeChart' => $incomeChart,
+            'categoryChart' => $categoryChart
+        ]);
+    }
+
+    private function getIncomeChartData($start = null, $end = null)
+    {
+        if (!$start) {
+            $start = Carbon::now()->subDays(6)->startOfDay();
+        }
+        if (!$end) {
+            $end = Carbon::now()->endOfDay();
+        }
+
+        $transactions = Transaction::select(
+            DB::raw('DATE(created_at) as date'),
+            DB::raw('SUM(income) as total_income'),
+            DB::raw('SUM(outcome) as total_outcome')
+        )
+            ->whereBetween('created_at', [$start, $end])
             ->groupBy('date')
             ->orderBy('date')
             ->get();
 
-        // Produk Terlaris
-        $topProducts = Order::where('is_done', 1)
-            ->select('product_id', DB::raw('SUM(quantity) as total_sold'))
-            ->with('product')
-            ->groupBy('product_id')
-            ->orderByDesc('total_sold')
-            ->take(5)
-            ->get();
+        return [
+            'labels' => $transactions->pluck('date')->map(function($date) {
+                return Carbon::parse($date)->format('d/m');
+            }),
+            'income' => $transactions->pluck('total_income'),
+            'outcome' => $transactions->pluck('total_outcome')
+        ];
+    }
 
-        return view('admin.dashboard', compact(
-            'totalOrders',
-            'totalProducts',
-            'totalCustomers',
-            'totalIncome',
-            'totalOutcome',
-            'netIncome',
-            'recentOrders',
-            'salesData',
-            'topProducts'
-        ));
+    private function getCategoryChartData($start = null, $end = null)
+    {
+        $query = Order::with('product.category')
+            ->select(
+                'products.category_id',
+                DB::raw('COUNT(*) as total_orders'),
+                DB::raw('SUM(orders.total_price) as total_revenue')
+            )
+            ->join('products', 'orders.product_id', '=', 'products.id')
+            ->groupBy('products.category_id');
+
+        if ($start && $end) {
+            $query->whereBetween('orders.created_at', [$start, $end]);
+        }
+
+        $categoryData = $query->get();
+
+        return [
+            'labels' => $categoryData->map(function($item) {
+                return $item->product->category->category_name;
+            }),
+            'orders' => $categoryData->pluck('total_orders'),
+            'revenue' => $categoryData->pluck('total_revenue')
+        ];
     }
 } 

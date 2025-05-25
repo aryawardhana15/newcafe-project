@@ -15,6 +15,9 @@ class AuthController extends Controller
     public function loginGet()
     {
         if (Auth::check()) {
+            if (auth()->user()->role_id === 1) {
+                return redirect('/transaction');
+            }
             return redirect('/home');
         }
         $title = "Login";
@@ -32,9 +35,9 @@ class AuthController extends Controller
             if (Auth::attempt($credentials)) {
                 $request->session()->regenerate();
                 
-                // Redirect ke dashboard admin jika user adalah admin
+                // Redirect ke halaman transaksi jika user adalah admin
                 if (auth()->user()->role_id === 1) {
-                    return redirect()->route('admin.dashboard');
+                    return redirect('/transaction');
                 }
                 
                 return redirect()->intended("/home");
@@ -54,6 +57,9 @@ class AuthController extends Controller
     public function registrationGet()
     {
         if (Auth::check()) {
+            if (auth()->user()->role_id === 1) {
+                return redirect('/transaction');
+            }
             return redirect('/home');
         }
         $title = "Registration";

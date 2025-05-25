@@ -9,13 +9,16 @@ class RoleMiddleware
 {
     public function handle(Request $request, Closure $next, $role)
     {
-        if (!$request->user() || $request->user()->role_id != 1) {
-            if ($request->expectsJson()) {
-                return response()->json([
-                    'message' => 'Unauthorized. Anda tidak memiliki akses ke halaman ini.'
-                ], 403);
-            }
-            return redirect('/')->with('error', 'Unauthorized. Anda tidak memiliki akses ke halaman ini.');
+        if (!auth()->check()) {
+            return redirect('/auth/login');
+        }
+
+        if ($role === 'admin' && auth()->user()->role_id !== 1) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki akses ke halaman ini');
+        }
+
+        if ($role === 'customer' && auth()->user()->role_id !== 2) {
+            return redirect()->back()->with('error', 'Anda tidak memiliki akses ke halaman ini');
         }
 
         return $next($request);

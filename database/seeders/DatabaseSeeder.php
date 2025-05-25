@@ -28,15 +28,11 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             AdminSeeder::class,
             CategorySeeder::class,
+            ProductSeeder::class,
             StatusSeeder::class,
             PaymentSeeder::class,
             BankSeeder::class,
             NoteSeeder::class,
-        ]);
-
-        // Seed user data
-        $this->call([
-            UserSeeder::class,
         ]);
 
         // Seed product data

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\{AuthController, HomeController, OrderController, PointController, ReviewController, ProductController, ProfileController, RajaOngkirController, TransactionController, PaymentController, MenuCategoryController};
+use App\Http\Controllers\Admin\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
@@ -208,9 +209,8 @@ Route::middleware(['auth'])->group(function () {
 
 // Admin Routes
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
-    // Dashboard
-    Route::get('/', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
-
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard/filter/{period}', [DashboardController::class, 'filter'])->name('dashboard.filter');
     // Products
     Route::resource('products', App\Http\Controllers\Admin\ProductController::class);
     Route::post('products/{product}/status', [App\Http\Controllers\Admin\ProductController::class, 'updateStatus'])->name('products.status');
@@ -233,4 +233,13 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::resource('users', App\Http\Controllers\Admin\UserController::class);
     Route::post('users/{user}/update-point', [App\Http\Controllers\Admin\UserController::class, 'updatePoint'])->name('users.update-point');
     Route::post('users/{user}/update-coupon', [App\Http\Controllers\Admin\UserController::class, 'updateCoupon'])->name('users.update-coupon');
+});
+
+// transaction
+Route::prefix('transaction')->middleware(['auth'])->group(function () {
+    Route::get('/', [TransactionController::class, 'index'])->name('transaction.index');
+    Route::post('/', [TransactionController::class, 'store'])->name('transaction.store');
+    Route::get('/{transaction}/edit', [TransactionController::class, 'edit'])->name('transaction.edit');
+    Route::put('/{transaction}', [TransactionController::class, 'update'])->name('transaction.update');
+    Route::delete('/{transaction}', [TransactionController::class, 'destroy'])->name('transaction.destroy');
 });

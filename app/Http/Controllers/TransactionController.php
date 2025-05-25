@@ -18,7 +18,7 @@ class TransactionController extends Controller
         $totalIncome = Transaction::sum('income');
         $totalOutcome = Transaction::sum('outcome');
         $totalTransactions = Transaction::count();
-        $categories = Category::where('type', 'transaction')->get();
+        $categories = Category::all();
 
         return view('admin.transactions.index', compact(
             'transactions',
@@ -77,7 +77,7 @@ class TransactionController extends Controller
 
     public function edit(Transaction $transaction)
     {
-        $categories = Category::where('type', 'transaction')->get();
+        $categories = Category::all();
         return view('admin.transactions.edit', compact('transaction', 'categories'));
     }
 

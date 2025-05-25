@@ -1,5 +1,9 @@
 @extends('layouts.admin')
 
+@push('styles')
+<link href="https://cdn.datatables.net/1.10.24/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+@endpush
+
 @section('content')
 <div class="container-fluid">
     <!-- Page Heading -->
@@ -73,25 +77,41 @@
 </div>
 @endsection
 
-@push('styles')
-<link href="https://cdn.datatables.net/1.10.24/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-@endpush
-
 @push('scripts')
 <script src="https://cdn.datatables.net/1.10.24/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.24/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(document).ready(function() {
+    // Destroy existing DataTable instance if it exists
+    if ($.fn.DataTable.isDataTable('#categoriesTable')) {
+        $('#categoriesTable').DataTable().destroy();
+    }
+    
+    // Initialize new DataTable
     $('#categoriesTable').DataTable({
-        order: [[0, 'desc']]
+        order: [[0, 'desc']],
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.10.24/i18n/Indonesian.json'
+        }
     });
 
-    // Konfirmasi delete
+    // Konfirmasi delete dengan SweetAlert2
     $('.delete-form').on('submit', function(e) {
         e.preventDefault();
-        if (confirm('Apakah Anda yakin ingin menghapus kategori ini? Semua produk dalam kategori ini juga akan dihapus.')) {
-            this.submit();
-        }
+        Swal.fire({
+            title: 'Apakah Anda yakin?',
+            text: "Kategori dan semua produk terkait akan dihapus!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                this.submit();
+            }
+        });
     });
 });
 </script>

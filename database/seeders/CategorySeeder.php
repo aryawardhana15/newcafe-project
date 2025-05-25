@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Category;
 use Illuminate\Database\Seeder;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Support\Facades\DB;
 
 class CategorySeeder extends Seeder
 {
@@ -15,20 +15,43 @@ class CategorySeeder extends Seeder
      */
     public function run()
     {
-        Category::create([
-            "category_name" => "Product Sale",
-        ]);
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        DB::table('categories')->truncate();
 
-        Category::create([
-            "category_name" => "Production Cost",
-        ]);
+        $categories = [
+            [
+                'id' => 1,
+                'category_name' => 'Minuman',
+                'description' => 'Berbagai jenis minuman segar',
+                'image' => 'drinks.jpg'
+            ],
+            [
+                'id' => 2,
+                'category_name' => 'Makanan',
+                'description' => 'Menu makanan utama',
+                'image' => 'foods.jpg'
+            ],
+            [
+                'id' => 3,
+                'category_name' => 'Snack',
+                'description' => 'Makanan ringan dan cemilan',
+                'image' => 'snacks.jpg'
+            ],
+            [
+                'id' => 4,
+                'category_name' => 'Dessert',
+                'description' => 'Menu penutup dan makanan manis',
+                'image' => 'desserts.jpg'
+            ]
+        ];
 
-        Category::create([
-            "category_name" => "Marketing Cost",
-        ]);
+        foreach ($categories as $category) {
+            Category::updateOrCreate(
+                ['id' => $category['id']],
+                $category
+            );
+        }
 
-        Category::create([
-            "category_name" => "Server Maintanance",
-        ]);
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }
 }

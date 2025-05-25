@@ -2,26 +2,33 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\{DB, Hash};
 
 class AdminSeeder extends Seeder
 {
     public function run()
     {
+        // Disable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        
+        // Create default admin user
         User::create([
-            'fullname' => 'Administrator',
+            'fullname' => 'Admin',
             'username' => 'admin',
-            'email' => 'admin@cafe.com',
+            'email' => 'admin@admin.com',
             'password' => Hash::make('admin123'),
-            'role_id' => 1, // Admin role
+            'role_id' => 1,
+            'phone' => '081234567890',
+            'gender' => 'M',
+            'address' => 'Admin Address',
             'image' => 'default.jpg',
-            'phone' => '08123456789',
-            'gender' => 'L',
-            'address' => 'Alamat Admin',
             'coupon' => 0,
             'point' => 0
         ]);
+
+        // Enable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }
 } 

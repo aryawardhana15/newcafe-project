@@ -2,8 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Role;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class RoleSeeder extends Seeder
 {
@@ -14,14 +15,31 @@ class RoleSeeder extends Seeder
      */
     public function run()
     {
-        Role::create([
-            'id' => 1,
-            'role_name' => 'Admin'
-        ]);
+        // Disable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        
+        DB::table('roles')->delete();
 
-        Role::create([
-            'id' => 2,
-            'role_name' => 'Customer'
-        ]);
+        $roles = [
+            [
+                'id' => 1,
+                'name' => 'admin',
+                'created_at' => now(),
+                'updated_at' => now()
+            ],
+            [
+                'id' => 2,
+                'name' => 'customer',
+                'created_at' => now(),
+                'updated_at' => now()
+            ]
+        ];
+
+        foreach ($roles as $role) {
+            Role::create($role);
+        }
+
+        // Enable foreign key checks
+        DB::statement('SET FOREIGN_KEY_CHECKS=1');
     }
 }

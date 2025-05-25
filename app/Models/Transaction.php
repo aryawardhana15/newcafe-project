@@ -12,10 +12,14 @@ class Transaction extends Model
 
     protected $fillable = [
         'category_id',
-        'type',
         'description',
         'income',
         'outcome'
+    ];
+
+    protected $casts = [
+        'income' => 'decimal:2',
+        'outcome' => 'decimal:2'
     ];
 
     public function category()
@@ -25,16 +29,21 @@ class Transaction extends Model
 
     public function isIncome()
     {
-        return $this->type === 'income';
+        return $this->income > 0;
     }
 
     public function isOutcome()
     {
-        return $this->type === 'outcome';
+        return $this->outcome > 0;
     }
 
     public function getAmount()
     {
         return $this->isIncome() ? $this->income : $this->outcome;
+    }
+
+    public function getType()
+    {
+        return $this->isIncome() ? 'income' : 'outcome';
     }
 }

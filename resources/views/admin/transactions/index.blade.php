@@ -198,21 +198,22 @@
                         </select>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Tipe Transaksi</label>
+                        <select class="form-select" name="type" required>
+                            <option value="">Pilih Tipe</option>
+                            <option value="income">Pemasukan</option>
+                            <option value="outcome">Pengeluaran</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Deskripsi</label>
                         <textarea class="form-control" name="description" rows="3" required></textarea>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Pemasukan</label>
+                        <label class="form-label">Jumlah</label>
                         <div class="input-group">
                             <span class="input-group-text">Rp</span>
-                            <input type="number" class="form-control" name="income" min="0">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Pengeluaran</label>
-                        <div class="input-group">
-                            <span class="input-group-text">Rp</span>
-                            <input type="number" class="form-control" name="outcome" min="0">
+                            <input type="number" class="form-control" name="amount" min="0" required>
                         </div>
                     </div>
                 </div>

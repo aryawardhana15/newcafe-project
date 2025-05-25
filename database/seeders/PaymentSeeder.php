@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Payment;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -19,20 +20,24 @@ class PaymentSeeder extends Seeder
         
         DB::table('payments')->delete();
 
-        DB::table('payments')->insert([
+        $payments = [
             [
-                'id' => 1,
-                'payment_method' => 'Transfer Bank',
-                'created_at' => now(),
-                'updated_at' => now()
+                'id' => Payment::BANK_TRANSFER,
+                'name' => 'Transfer Bank',
+                'description' => 'Pembayaran melalui transfer bank',
+                'is_active' => true
             ],
             [
-                'id' => 2,
-                'payment_method' => 'Cash on Delivery (COD)',
-                'created_at' => now(),
-                'updated_at' => now()
+                'id' => Payment::CASH_ON_DELIVERY,
+                'name' => 'Cash on Delivery',
+                'description' => 'Pembayaran tunai saat pengiriman',
+                'is_active' => true
             ]
-        ]);
+        ];
+
+        foreach ($payments as $payment) {
+            Payment::create($payment);
+        }
 
         // Enable foreign key checks
         DB::statement('SET FOREIGN_KEY_CHECKS=1');

@@ -16,10 +16,10 @@ class TransactionController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $totalIncome = Transaction::where('type', 'income')->sum('income');
-        $totalOutcome = Transaction::where('type', 'outcome')->sum('outcome');
+        $totalIncome = Transaction::sum('income');
+        $totalOutcome = Transaction::sum('outcome');
         $totalTransactions = Transaction::count();
-        $categories = Category::where('type', 'transaction')->get();
+        $categories = Category::all();
 
         return view('admin.transactions.index', compact(
             'transactions',
@@ -38,48 +38,39 @@ class TransactionController extends Controller
             $request->validate([
                 'category_id' => 'required|exists:categories,id',
                 'description' => 'required|string|max:255',
-                'income' => 'nullable|numeric|min:0',
-                'outcome' => 'nullable|numeric|min:0'
+                'type' => 'required|in:income,outcome',
+                'amount' => 'required|numeric|min:0'
             ], [
                 'category_id.required' => 'Kategori harus dipilih',
                 'category_id.exists' => 'Kategori tidak valid',
                 'description.required' => 'Deskripsi harus diisi',
                 'description.max' => 'Deskripsi maksimal 255 karakter',
-                'income.numeric' => 'Pemasukan harus berupa angka',
-                'income.min' => 'Pemasukan minimal 0',
-                'outcome.numeric' => 'Pengeluaran harus berupa angka',
-                'outcome.min' => 'Pengeluaran minimal 0'
+                'type.required' => 'Tipe transaksi harus dipilih',
+                'type.in' => 'Tipe transaksi tidak valid',
+                'amount.required' => 'Jumlah harus diisi',
+                'amount.numeric' => 'Jumlah harus berupa angka',
+                'amount.min' => 'Jumlah minimal 0'
             ]);
-
-            // Validasi income dan outcome
-            if (!$request->income && !$request->outcome) {
-                throw new \Exception('Pemasukan atau pengeluaran harus diisi');
-            }
-
-            if ($request->income && $request->outcome) {
-                throw new \Exception('Tidak bisa mengisi pemasukan dan pengeluaran sekaligus');
-            }
 
             Transaction::create([
                 'category_id' => $request->category_id,
-                'type' => $request->income ? 'income' : 'outcome',
                 'description' => $request->description,
-                'income' => $request->income,
-                'outcome' => $request->outcome
+                'income' => $request->type === 'income' ? $request->amount : 0,
+                'outcome' => $request->type === 'outcome' ? $request->amount : 0
             ]);
 
             DB::commit();
-
-            return redirect()->back()->with('success', 'Transaksi berhasil ditambahkan');
+            return redirect()->route('admin.transactions.index')
+                ->with('success', 'Transaksi berhasil ditambahkan');
         } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->back()->with('error', $e->getMessage());
+            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
         }
     }
 
     public function edit(Transaction $transaction)
     {
-        $categories = Category::where('type', 'transaction')->get();
+        $categories = Category::all();
         return view('admin.transactions.edit', compact('transaction', 'categories'));
     }
 
@@ -91,25 +82,15 @@ class TransactionController extends Controller
             $request->validate([
                 'category_id' => 'required|exists:categories,id',
                 'description' => 'required|string|max:255',
-                'income' => 'nullable|numeric|min:0',
-                'outcome' => 'nullable|numeric|min:0'
+                'type' => 'required|in:income,outcome',
+                'amount' => 'required|numeric|min:0'
             ]);
-
-            // Validasi income dan outcome
-            if (!$request->income && !$request->outcome) {
-                throw new \Exception('Pemasukan atau pengeluaran harus diisi');
-            }
-
-            if ($request->income && $request->outcome) {
-                throw new \Exception('Tidak bisa mengisi pemasukan dan pengeluaran sekaligus');
-            }
 
             $transaction->update([
                 'category_id' => $request->category_id,
-                'type' => $request->income ? 'income' : 'outcome',
                 'description' => $request->description,
-                'income' => $request->income,
-                'outcome' => $request->outcome
+                'income' => $request->type === 'income' ? $request->amount : 0,
+                'outcome' => $request->type === 'outcome' ? $request->amount : 0
             ]);
 
             DB::commit();

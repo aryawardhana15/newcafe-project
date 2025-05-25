@@ -8,15 +8,15 @@ return new class extends Migration
 {
     public function up()
     {
-        Schema::table('transactions', function (Blueprint $table) {
-            $table->enum('type', ['income', 'outcome'])->after('category_id');
+        Schema::table('categories', function (Blueprint $table) {
+            $table->renameColumn('name', 'category_name');
         });
     }
 
     public function down()
     {
-        Schema::table('transactions', function (Blueprint $table) {
-            $table->dropColumn('type');
+        Schema::table('categories', function (Blueprint $table) {
+            $table->renameColumn('category_name', 'name');
         });
     }
 }; 

@@ -11,9 +11,14 @@ class Bank extends Model
     use HasFactory;
 
     protected $fillable = [
-        'bank_name',
+        'name',
         'account_number',
-        'logo'
+        'account_name',
+        'is_active'
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean'
     ];
 
     public function orders()

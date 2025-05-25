@@ -45,11 +45,20 @@ class ProductController extends Controller
             $validatedData['image'] = $imageName;
         }
 
-        $validatedData['is_available'] = true; // Set default availability
-        Product::create($validatedData);
+        $validatedData['is_available'] = true;
+        $validatedData['user_id'] = auth()->id();
 
-        return redirect()->route('admin.products.index')
-            ->with('success', 'Produk berhasil ditambahkan');
+        try {
+            Product::create($validatedData);
+            return redirect()->route('admin.products.index')
+                ->with('success', 'Produk berhasil ditambahkan');
+        } catch (\Exception $e) {
+            if (isset($imageName)) {
+                Storage::delete('public/products/' . $imageName);
+            }
+            return back()->with('error', 'Gagal menambahkan produk. Silakan coba lagi.')
+                ->withInput();
+        }
     }
 
     public function edit(Product $product)

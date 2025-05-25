@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\Bank;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class BankSeeder extends Seeder
 {
@@ -14,43 +14,29 @@ class BankSeeder extends Seeder
      */
     public function run()
     {
-        // Disable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
-        
-        DB::table('banks')->delete();
-
-        DB::table('banks')->insert([
+        $banks = [
             [
-                'id' => 1,
-                'bank_name' => 'Mandiri',
-                'account_number' => '092 7840 1923 7422',
-                'created_at' => now(),
-                'updated_at' => now()
+                'name' => 'BCA',
+                'account_number' => '1234567890',
+                'account_name' => 'CAFE PROJECT',
+                'is_active' => true
             ],
             [
-                'id' => 2,
-                'bank_name' => 'BRI',
-                'account_number' => '058 9092 8274 9125',
-                'created_at' => now(),
-                'updated_at' => now()
+                'name' => 'BNI',
+                'account_number' => '0987654321',
+                'account_name' => 'CAFE PROJECT',
+                'is_active' => true
             ],
             [
-                'id' => 3,
-                'bank_name' => 'BCA',
-                'account_number' => '088 7182 4291 9123',
-                'created_at' => now(),
-                'updated_at' => now()
-            ],
-            [
-                'id' => 4,
-                'bank_name' => 'BNI',
-                'account_number' => '098 2937 9823 2341',
-                'created_at' => now(),
-                'updated_at' => now()
+                'name' => 'Mandiri',
+                'account_number' => '2468135790',
+                'account_name' => 'CAFE PROJECT',
+                'is_active' => true
             ]
-        ]);
+        ];
 
-        // Enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        foreach ($banks as $bank) {
+            Bank::create($bank);
+        }
     }
 }

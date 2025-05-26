@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title }} Page - GAFH</title>
+    <title>Register Page - GAFAZ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Custom Animation */
@@ -23,7 +23,7 @@
             <div class="p-8">
                 <!-- Header -->
                 <div class="text-center">
-                    <h1 class="text-3xl font-bold text-gray-800 mb-2">{{ $title }} Page</h1>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Registration Page</h1>
                     <p class="text-gray-600">Create your account to get started.</p>
                 </div>
 

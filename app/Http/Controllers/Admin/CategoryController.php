@@ -50,28 +50,32 @@ class CategoryController extends Controller
     public function update(Request $request, Category $category)
     {
         $validatedData = $request->validate([
-            'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
+            'category_name' => 'required|string|max:255|unique:categories,category_name,' . $category->id,
             'description' => 'nullable|string',
             'image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048'
         ]);
 
-        if ($request->hasFile('image')) {
-            // Hapus gambar lama
-            if ($category->image && Storage::exists('public/categories/' . $category->image)) {
-                Storage::delete('public/categories/' . $category->image);
+        try {
+            if ($request->hasFile('image')) {
+                // Delete old image if exists
+                if ($category->image && Storage::exists('public/categories/' . $category->image)) {
+                    Storage::delete('public/categories/' . $category->image);
+                }
+
+                // Upload new image
+                $image = $request->file('image');
+                $imageName = time() . '_' . Str::slug($request->category_name) . '.' . $image->getClientOriginalExtension();
+                $image->storeAs('public/categories', $imageName);
+                $validatedData['image'] = $imageName;
             }
 
-            // Upload gambar baru
-            $image = $request->file('image');
-            $imageName = time() . '_' . Str::slug($request->name) . '.' . $image->getClientOriginalExtension();
-            $image->storeAs('public/categories', $imageName);
-            $validatedData['image'] = $imageName;
+            $category->update($validatedData);
+
+            return redirect()->route('admin.categories.index')
+                ->with('success', 'Kategori berhasil diperbarui');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal memperbarui kategori: ' . $e->getMessage())->withInput();
         }
-
-        $category->update($validatedData);
-
-        return redirect()->route('admin.categories.index')
-            ->with('success', 'Kategori berhasil diperbarui');
     }
 
     public function destroy(Category $category)

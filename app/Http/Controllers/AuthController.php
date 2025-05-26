@@ -103,8 +103,9 @@ class AuthController extends Controller
                 throw new \Exception('Gagal membuat user baru.');
             }
 
+            // Redirect to login with success message
             return redirect('/auth/login')
-                ->with('success', 'Registrasi berhasil! Silakan login.');
+                ->with('success', 'Registrasi berhasil! Silakan login dengan akun yang baru dibuat.');
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Registration validation error: ' . $e->getMessage());
